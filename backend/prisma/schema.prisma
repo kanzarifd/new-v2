@@ -1,0 +1,63 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id                    Int     @id @default(autoincrement())
+  name                  String
+  full_name             String
+  number                String
+  email                 String   @unique
+  password              String
+  role                  Role     @default(user)
+  bank_account_number   String
+  bank_account_balance  Float
+  reclam                Reclam[]
+  resetToken            String?  @db.VarChar(255)
+  resetTokenExpiry     DateTime?
+}
+
+model Reclam {
+  id          Int       @id @default(autoincrement())
+  title       String
+  description String
+  status      Status
+  priority    Priority
+  date_debut  DateTime
+  date_fin    DateTime?
+  region      Region?   @relation(fields: [region_id], references: [id])
+  region_id   Int?
+  user        User?     @relation(fields: [user_id], references: [id])
+  user_id     Int?
+}
+
+model Region {
+  id         Int      @id @default(autoincrement())
+  name       String
+  date_debut DateTime
+  date_fin   DateTime
+  reclam     Reclam[]
+}
+
+enum Role {
+  user
+  admin
+}
+
+enum Status {
+  pending
+  in_progress
+  resolved
+  closed
+}
+
+enum Priority {
+  low
+  medium
+  high
+}

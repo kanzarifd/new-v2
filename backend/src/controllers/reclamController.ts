@@ -21,6 +21,23 @@ export const addReclam = async (req: Request, res: Response) => {
       user_id,
     } = req.body;
 
+    // Validate required fields
+    if (!title || !description || !status || !priority || !date_debut || !region_id || !user_id) {
+      return res.status(400).json({ error: 'All fields are required' });
+    }
+
+    // Validate region
+    const region = await prisma.region.findUnique({ where: { id: Number(region_id) } });
+    if (!region) {
+      return res.status(404).json({ error: 'Region not found' });
+    }
+
+    // Validate user
+    const user = await prisma.user.findUnique({ where: { id: Number(user_id) } });
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
     const newReclam = await prisma.reclam.create({
       data: {
         title,
@@ -29,12 +46,14 @@ export const addReclam = async (req: Request, res: Response) => {
         priority,
         date_debut: new Date(date_debut),
         date_fin: date_fin ? new Date(date_fin) : undefined,
-        region_id,
-        user_id,
+        region: { connect: { id: Number(region_id) } },
+        user: { connect: { id: Number(user_id) } },
       },
     });
+
     return res.status(201).json(newReclam);
   } catch (error: any) {
+    console.error('Error in addReclam:', error);
     return res.status(500).json({ error: error.message });
   }
 };
@@ -75,7 +94,6 @@ export const updateReclam = async (req: Request, res: Response) => {
       user_id,
     } = req.body;
 
-    // Create update data object with only provided fields
     const updateData: any = {};
 
     // Add non-date fields if provided
@@ -105,7 +123,7 @@ export const updateReclam = async (req: Request, res: Response) => {
       updateData.date_fin = finDate;
     }
 
-    // Only add region/user if they exist and are not null/undefined
+    // Only update region if it exists and is not null/undefined
     if (region_id !== undefined && region_id !== null) {
       const region = await prisma.region.findUnique({ where: { id: Number(region_id) } });
       if (!region) {
@@ -116,6 +134,7 @@ export const updateReclam = async (req: Request, res: Response) => {
       updateData.region = { connect: { id: Number(region_id) } };
     }
 
+    // Only update user if it exists and is not null/undefined
     if (user_id !== undefined && user_id !== null) {
       const user = await prisma.user.findUnique({ where: { id: Number(user_id) } });
       if (!user) {
@@ -136,8 +155,10 @@ export const updateReclam = async (req: Request, res: Response) => {
       where: { id },
       data: updateData,
     });
+
     return res.json(updated);
   } catch (error: any) {
+    console.error('Error in updateReclam:', error);
     return res.status(500).json({ error: error.message });
   }
 };

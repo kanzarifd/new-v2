@@ -18,6 +18,11 @@ model User {
   bank_account_number   String
   bank_account_balance  Float
   reclam                Reclam[]
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+  verificationCode     String?  @db.VarChar(255)
+  verificationCodeExpires DateTime?
+  isVerified            Boolean? @default(false)
   resetToken            String?  @db.VarChar(255)
   resetTokenExpiry     DateTime?
 }
@@ -30,10 +35,12 @@ model Reclam {
   priority    Priority
   date_debut  DateTime
   date_fin    DateTime?
-  region      Region?   @relation(fields: [region_id], references: [id])
-  region_id   Int?
-  user        User?     @relation(fields: [user_id], references: [id])
-  user_id     Int?
+  region      Region    @relation(fields: [region_id], references: [id])
+  region_id   Int
+  user        User      @relation(fields: [user_id], references: [id])
+  user_id     Int
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
 }
 
 model Region {
@@ -42,6 +49,8 @@ model Region {
   date_debut DateTime
   date_fin   DateTime
   reclam     Reclam[]
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
 }
 
 enum Role {

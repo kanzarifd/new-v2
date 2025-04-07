@@ -6,6 +6,8 @@ import crypto from 'crypto';
 import nodemailer from 'nodemailer';
 import { isEmail } from 'validator';
 
+const JWT_SECRET = process.env.JWT_SECRET || 'your-default-secret';
+
 const prisma = new PrismaClient();
 
 // ... (rest of the code remains the same)
@@ -261,20 +263,10 @@ export const login = async (req: Request, res: Response) => {
     const { email, password } = req.body;
 
     if (!email || !password) {
-      return res.status(400).json({
-        message: 'Missing required fields',
-        errors: {
-          email: !email ? 'Email is required' : null,
-          password: !password ? 'Password is required' : null
-        }
-      });
+      return res.status(400).json({ message: 'Email and password are required' });
     }
 
-    if (!isEmail(email)) {
-      return res.status(400).json({ message: 'Invalid email format' });
-    }
-
-    // Find user and verify password in a single query
+    // Find user by email
     const user = await prisma.user.findUnique({
       where: { email },
       select: {
@@ -284,7 +276,7 @@ export const login = async (req: Request, res: Response) => {
         role: true,
         name: true,
         full_name: true,
-        number: true,
+        number: true
       }
     });
 
@@ -299,31 +291,48 @@ export const login = async (req: Request, res: Response) => {
     }
 
     // Generate JWT token
-    const token = jwt.sign(
-      { userId: user.id, role: user.role },
-      process.env.JWT_SECRET!,
-      { expiresIn: '1h' }
-    );
+    try {
+      const token = jwt.sign(
+        { userId: user.id, role: user.role },
+        JWT_SECRET,
+        { expiresIn: '1h' }
+      );
 
-    // Prepare user data without password
-    const userData = {
-      id: user.id,
-      email: user.email,
-      role: user.role,
-      name: user.name,
-      full_name: user.full_name,
-      number: user.number,
-    };
+      // Prepare user data without password
+      const userData = {
+        id: user.id,
+        email: user.email,
+        role: user.role,
+        name: user.name,
+        full_name: user.full_name,
+        number: user.number,
+      };
 
-    return res.json({
-      message: 'Login successful',
-      user: userData,
-      token
+      return res.json({
+        message: 'Login successful',
+        user: userData,
+        token
+      });
+    } catch (jwtError) {
+      console.error('JWT token generation error:', {
+        message: jwtError.message,
+        stack: jwtError.stack
+      });
+      return res.status(500).json({
+        message: 'Failed to generate authentication token',
+        error: 'JWT token generation failed'
+      });
+    }
+  } catch (error: any) {
+    console.error('Login error:', {
+      message: error.message,
+      stack: error.stack
     });
-
-  } catch (err: any) {
-    console.error('Login error:', err);
-    return res.status(500).json({ message: 'Internal server error' });
+    
+    return res.status(500).json({
+      message: 'Internal server error',
+      error: error.message
+    });
   }
 };
 

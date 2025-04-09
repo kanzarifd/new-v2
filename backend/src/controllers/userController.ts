@@ -204,56 +204,24 @@ export const getUserById = async (req: Request, res: Response) => {
 
 export const updateUser = async (req: Request, res: Response) => {
   try {
-    const id = Number(req.params.id);
-    const data = req.body;
-    
-    // Validate at least one field is provided
-    if (Object.keys(data).length === 0) {
-      return res.status(400).json({ message: 'No update data provided' });
-    }
+    const { id } = req.params;
+    const { email, password, role } = req.body;
 
-    // Create a new object for Prisma update with proper types
-    const updateData: Prisma.UserUpdateInput = {
-      ...data,
-      bank_account_balance: data.bank_account_balance ? parseFloat(data.bank_account_balance) : undefined,
-      role: data.role ? (data.role as 'user' | 'admin') : undefined
-    };
-
-    const updated = await prisma.user.update({
-      where: { id },
-      data: updateData,
-      select: {
-        id: true,
-        name: true,
-        full_name: true,
-        number: true,
-        email: true,
-        bank_account_number: true,
-        bank_account_balance: true,
-        role: true,
+    const user = await prisma.user.update({
+      where: { id: Number(id) },
+      data: {
+        email,
+        password: password ? await bcrypt.hash(password, 10) : undefined,
+        role
       }
     });
 
     return res.status(200).json({
       message: 'User updated successfully',
-      user: updated
+      user
     });
   } catch (err: any) {
     console.error('Error updating user:', err);
-    return res.status(500).json({ message: 'Internal server error' });
-  }
-};
-
-export const deleteUser = async (req: Request, res: Response) => {
-  try {
-    const id = Number(req.params.id);
-    await prisma.user.delete({
-      where: { id }
-    });
-
-    return res.json({ message: 'User deleted' });
-  } catch (err: any) {
-    console.error('Error deleting user:', err);
     return res.status(500).json({ message: 'Internal server error' });
   }
 };
@@ -545,5 +513,44 @@ export const resendVerification = async (req: Request, res: Response) => {
   } catch (err: any) {
     console.error('Resend verification error:', err);
     return res.status(500).json({ message: 'Internal server error' });
+  }
+};
+export const deleteUser = async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+
+    const existingUser = await prisma.user.findUnique({ where: { id: Number(id) } });
+
+    if (!existingUser) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    await prisma.user.delete({
+      where: { id: Number(id) }
+    });
+
+    return res.status(200).json({ message: 'User deleted successfully' });
+  } catch (err: any) {
+    console.error('Error deleting user:', err);
+    return res.status(500).json({ message: 'Internal server error' });
+  }
+};
+
+
+export const getUsersByRole = async (req: Request, res: Response, role: Prisma.UserRoleFilter) => {
+  try {
+    const users = await prisma.user.findMany({
+      where: {
+        role
+      },
+      orderBy: {
+        createdAt: 'desc'
+      }
+    });
+
+    return res.json(users);
+  } catch (error: any) {
+    console.error('Error in getUsersByRole:', error);
+    return res.status(500).json({ error: error.message });
   }
 };

@@ -29,7 +29,8 @@ import {
   InputLabel,
   Select,
   MenuItem,
-  SelectChangeEvent
+  SelectChangeEvent,
+  Snackbar
 } from '@mui/material';
 import {
   AdapterDateFns
@@ -39,6 +40,7 @@ import { format } from 'date-fns';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
 import axios from 'axios';
+import { useSnackbar } from '../components/SnackbarProvider';
 
 interface RegionFormData {
   name: string;
@@ -73,6 +75,7 @@ const AdminDashboard = () => {
   const location = useLocation();
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
+  const { enqueueSnackbar } = useSnackbar();
 
   // Existing state
   const [open, setOpen] = useState(false);
@@ -95,6 +98,12 @@ const AdminDashboard = () => {
   const [selectedPriority, setSelectedPriority] = useState<string>('high');
   const [loadingPriorityReclams, setLoadingPriorityReclams] = useState(false);
   const [priorityError, setPriorityError] = useState<string | null>(null);
+
+  // New state for users by role
+  const [usersByRole, setUsersByRole] = useState<any[]>([]);
+  const [selectedUserRole, setSelectedUserRole] = useState<string>('user');
+  const [loadingUsers, setLoadingUsers] = useState(false);
+  const [usersError, setUsersError] = useState<string | null>(null);
 
   const fetchRegions = async () => {
     try {
@@ -191,22 +200,6 @@ const AdminDashboard = () => {
     }
   };
 
-  const handleDelete = async (id: number) => {
-    if (!window.confirm('Are you sure you want to delete this region?')) return;
-
-    try {
-      await fetch(`http://localhost:8000/api/regions/${id}`, {
-        method: 'DELETE',
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem('token')}`,
-        }
-      });
-      await fetchRegions();
-    } catch (error) {
-      console.error('Failed to delete region:', error);
-    }
-  };
-
   // New function to handle priority change
   const handlePriorityChange = (event: SelectChangeEvent) => {
     setPriorityFilter(event.target.value as string);
@@ -244,29 +237,96 @@ const AdminDashboard = () => {
     fetchReclams(regionId);
   };
 
-  // New function to fetch reclams by priority
-  const fetchPriorityReclams = async (priority: string) => {
+  // New function to fetch all reclamations
+  const fetchAllReclams = async () => {
     setLoadingPriorityReclams(true);
     setPriorityError(null);
 
     try {
-      const response = await axios.get(`http://localhost:8000/api/reclams/priority/${priority}`);
+      const response = await axios.get('http://localhost:8000/api/reclams');
       setPriorityReclams(response.data);
     } catch (error: any) {
-      if (error.response?.status === 404) {
-        setPriorityError('No reclamations found with this priority.');
-      } else {
-        setPriorityError('Failed to load reclamations by priority.');
-      }
+      setPriorityError('Failed to load reclamations.');
     } finally {
       setLoadingPriorityReclams(false);
     }
   };
 
-  // Fetch reclams for selected priority
   useEffect(() => {
-    fetchPriorityReclams(selectedPriority);
-  }, [selectedPriority]);
+    fetchAllReclams();
+  }, []);
+
+  // Filter reclamations based on selected priority
+  const filteredReclams = priorityReclams.filter(reclam => 
+    reclam.priority === selectedPriority
+  );
+
+  // Fetch users by role
+  const fetchUsersByRole = async (role: string) => {
+    setLoadingUsers(true);
+    setUsersError(null);
+
+    try {
+      const response = await axios.get(`http://localhost:8000/api/users/role/${role}`);
+      setUsersByRole(response.data);
+    } catch (error: any) {
+      if (error.response?.status === 404) {
+        setUsersError(`No users found with role: ${role}`);
+      } else {
+        setUsersError('Failed to load users.');
+      }
+    } finally {
+      setLoadingUsers(false);
+    }
+  };
+
+  // Fetch users when role changes
+  useEffect(() => {
+    fetchUsersByRole(selectedUserRole);
+  }, [selectedUserRole]);
+
+  const handleDeleteUser = async (userId: number) => {
+    if (!window.confirm('Are you sure you want to delete this user? This action cannot be undone.')) {
+      return;
+    }
+
+    try {
+      await axios.delete(`http://localhost:8000/api/users/${userId}`);
+      fetchUsersByRole(selectedUserRole);
+      enqueueSnackbar('User deleted successfully', { variant: 'success' });
+    } catch (error: any) {
+      console.error('Error deleting user:', error);
+      enqueueSnackbar(error.response?.data?.message || 'Error deleting user', { variant: 'error' });
+    }
+  };
+
+  const handleEditUser = async (userId: number) => {
+    try {
+      const response = await axios.get(`http://localhost:8000/api/users/${userId}`);
+      // setUserToEdit(response.data);
+      // setOpen(true);
+    } catch (error: any) {
+      console.error('Error fetching user:', error);
+      enqueueSnackbar('Error fetching user', { variant: 'error' });
+    }
+  };
+
+  const handleUpdateUser = async (updatedUser: any) => {
+    try {
+      await axios.put(`http://localhost:8000/api/users/${updatedUser.id}`, updatedUser);
+      fetchUsersByRole(selectedUserRole);
+      // setOpen(false);
+      // setUserToEdit(null);
+      enqueueSnackbar('User updated successfully', { variant: 'success' });
+    } catch (error: any) {
+      console.error('Error updating user:', error);
+      enqueueSnackbar('Error updating user', { variant: 'error' });
+    }
+  };
+
+  const showNotification = (message: string, variant: 'success' | 'error') => {
+    enqueueSnackbar(message, { variant });
+  };
 
   return (
     <Box sx={{ p: 3 }}>
@@ -320,12 +380,6 @@ const AdminDashboard = () => {
                     handleOpen(region);
                   }}>
                     <EditIcon />
-                  </IconButton>
-                  <IconButton onClick={(e) => {
-                    e.stopPropagation();
-                    handleDelete(region.id);
-                  }}>
-                    <DeleteIcon />
                   </IconButton>
                 </Box>
               </ListItem>
@@ -436,7 +490,7 @@ const AdminDashboard = () => {
                 </TableRow>
               </TableHead>
               <TableBody>
-                {priorityReclams.map(reclam => (
+                {filteredReclams.map(reclam => (
                   <TableRow key={reclam.id}>
                     <TableCell>{reclam.title}</TableCell>
                     <TableCell>{reclam.description}</TableCell>
@@ -445,6 +499,91 @@ const AdminDashboard = () => {
                     <TableCell>{reclam.status}</TableCell>
                     <TableCell>{new Date(reclam.date_debut).toLocaleDateString()}</TableCell>
                     <TableCell>{reclam.date_fin ? new Date(reclam.date_fin).toLocaleDateString() : '-'}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </TableContainer>
+        )}
+      </Paper>
+
+      {/* Users by Role section */}
+      <Paper sx={{ p: 2, mb: 3 }}>
+        <Typography variant="h6" gutterBottom>
+          Users by Role
+        </Typography>
+
+
+        <Box sx={{ display: 'flex', gap: 2, mb: 2, alignItems: 'center' }}>
+          <FormControl sx={{ minWidth: 120 }}>
+            <InputLabel>Role</InputLabel>
+            <Select
+              value={selectedUserRole}
+              label="Role"
+              onChange={(e) => setSelectedUserRole(e.target.value as string)}
+            >
+              <MenuItem value="user">Users</MenuItem>
+              <MenuItem value="admin">Admins</MenuItem>
+              <MenuItem value="agent">Agents</MenuItem>
+            </Select>
+          </FormControl>
+
+          {usersError && (
+            <Alert severity="error" sx={{ flex: 1 }}>
+              {usersError}
+            </Alert>
+          )}
+        </Box>
+
+        {loadingUsers && (
+          <Box sx={{ display: 'flex', justifyContent: 'center', py: 3 }}>
+            <CircularProgress />
+          </Box>
+        )}
+
+        {!loadingUsers && (
+          <TableContainer>
+            <Table>
+              <TableHead>
+                <TableRow>
+                  <TableCell>Name</TableCell>
+                  <TableCell>Email</TableCell>
+                  <TableCell>Full Name</TableCell>
+                  <TableCell>Phone Number</TableCell>
+                  <TableCell>Bank Account</TableCell>
+                  <TableCell>Balance</TableCell>
+                  <TableCell>Created At</TableCell>
+                  <TableCell>Updated At</TableCell>
+                  <TableCell />
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {usersByRole.map((user) => (
+                  <TableRow key={user.id}>
+                    <TableCell>{user.name}</TableCell>
+                    <TableCell>{user.email}</TableCell>
+                    <TableCell>{user.full_name}</TableCell>
+                    <TableCell>{user.number}</TableCell>
+                    <TableCell>{user.bank_account_number}</TableCell>
+                    <TableCell>{user.bank_account_balance}</TableCell>
+                    <TableCell>{new Date(user.createdAt).toLocaleDateString()}</TableCell>
+                    <TableCell>{new Date(user.updatedAt).toLocaleDateString()}</TableCell>
+                    <TableCell>
+                      <IconButton
+                        color="primary"
+                        onClick={() => handleEditUser(user.id)}
+                        size="small"
+                      >
+                        <EditIcon />
+                      </IconButton>
+                      <IconButton
+                        color="error"
+                        onClick={() => handleDeleteUser(user.id)}
+                        size="small"
+                      >
+                        <DeleteIcon />
+                      </IconButton>
+                    </TableCell>
                   </TableRow>
                 ))}
               </TableBody>

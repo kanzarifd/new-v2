@@ -4,10 +4,11 @@ import {
   getAllUsers, 
   getUserById, 
   updateUser, 
-  deleteUser, 
   login,
   requestPasswordReset,
-  resetPassword
+  resetPassword,
+  getUsersByRole,
+  deleteUser
 } from '../controllers/userController';
 
 // Helper function to wrap async controllers
@@ -47,6 +48,16 @@ router.get('/', asyncHandler(async (req: Request, res: Response) => {
   }
 }));
 
+router.delete('/:id', asyncHandler(async (req: Request, res: Response) => {
+  try {
+    const response = await deleteUser(req, res);
+    return response;
+  } catch (error: any) {
+    console.error('Route-level error:', error);
+    throw error;
+  }
+}));
+
 router.get('/:id', asyncHandler(async (req: Request, res: Response) => {
   try {
     const response = await getUserById(req, res);
@@ -60,16 +71,6 @@ router.get('/:id', asyncHandler(async (req: Request, res: Response) => {
 router.put('/:id', asyncHandler(async (req: Request, res: Response) => {
   try {
     const response = await updateUser(req, res);
-    return response;
-  } catch (error: any) {
-    console.error('Route-level error:', error);
-    throw error;
-  }
-}));
-
-router.delete('/:id', asyncHandler(async (req: Request, res: Response) => {
-  try {
-    const response = await deleteUser(req, res);
     return response;
   } catch (error: any) {
     console.error('Route-level error:', error);
@@ -107,6 +108,13 @@ router.post('/password/reset/:token', asyncHandler(async (req: Request, res: Res
     console.error('Route-level error:', error);
     throw error;
   }
+}));
+
+// Get users by role
+router.get('/role/:role', asyncHandler(async (req: Request, res: Response) => {
+  const { role } = req.params;
+  const users = await getUsersByRole(req, res, role);
+  res.json(users);
 }));
 
 export { router };

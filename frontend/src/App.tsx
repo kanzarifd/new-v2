@@ -4,6 +4,7 @@ import { ThemeProvider, createTheme } from '@mui/material/styles';
 import CssBaseline from '@mui/material/CssBaseline';
 import { AuthProvider } from './context/AuthContext';
 import ProtectedRoute from './components/ProtectedRoute';
+import { SnackbarProvider } from './components/SnackbarProvider';
 
 // Pages
 import Login from './pages/Login';
@@ -11,9 +12,9 @@ import Register from './pages/Register';
 import AdminDashboard from './pages/AdminDashboard';
 import UserDashboard from './pages/UserDashboard';
 import ResetPassword from './pages/ResetPassword';
+import AgentDashboard from './pages/AgentDashboard';
 
-// Components
-
+// Theme
 const theme = createTheme({
   palette: {
     primary: {
@@ -25,45 +26,54 @@ const theme = createTheme({
   },
 });
 
-const App = () => {
+function App() {
   return (
     <ThemeProvider theme={theme}>
       <CssBaseline />
       <AuthProvider>
-        <Router>
-       
-          <Routes>
-            {/* Public Routes */}
-            <Route path="/" element={<Login />} />
-            <Route path="/register" element={<Register />} />
-            <Route path="/forgot-password" element={<div>Forgot Password Page</div>} />
-            <Route path="/reset-password/:token" element={<ResetPassword />} />
+        <SnackbarProvider>
+          <Router>
+            <Routes>
+              {/* Public Routes */}
+              <Route path="/" element={<Login />} />
+              <Route path="/login" element={<Login />} />
+              <Route path="/register" element={<Register />} />
+              <Route path="/reset-password" element={<ResetPassword />} />
 
-            {/* Protected Routes */}
-            <Route
-              path="/admin"
-              element={
-                <ProtectedRoute role="admin">
-                  <AdminDashboard />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/user"
-              element={
-                <ProtectedRoute role="user">
-                  <UserDashboard />
-                </ProtectedRoute>
-              }
-            />
+              {/* Protected Routes */}
+              <Route
+                path="/admin"
+                element={
+                  <ProtectedRoute role="admin">
+                    <AdminDashboard />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/user"
+                element={
+                  <ProtectedRoute role="user">
+                    <UserDashboard />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/agent"
+                element={
+                  <ProtectedRoute role="agent">
+                    <AgentDashboard />
+                  </ProtectedRoute>
+                }
+              />
 
-            {/* Redirect to login if not authenticated */}
-            <Route path="*" element={<Navigate to="/" replace />} />
-          </Routes>
-        </Router>
+              {/* Redirect to login if not authenticated */}
+              <Route path="*" element={<Navigate to="/" replace />} />
+            </Routes>
+          </Router>
+        </SnackbarProvider>
       </AuthProvider>
     </ThemeProvider>
   );
-};
+}
 
 export default App;

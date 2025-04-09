@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 import { PrismaClient } from '@prisma/client';
+import { Priority } from '../types/reclam';
 
 const prisma = new PrismaClient();
 
@@ -76,6 +77,65 @@ export const getReclamById = async (req: Request, res: Response) => {
     }
     return res.json(reclam);
   } catch (error: any) {
+    return res.status(500).json({ error: error.message });
+  }
+};
+
+export const getReclamsByRegion = async (req: Request, res: Response) => {
+  try {
+    const regionId = Number(req.params.regionId);
+
+    if (isNaN(regionId)) {
+      return res.status(400).json({ error: 'Invalid region ID' });
+    }
+
+    const reclams = await prisma.reclam.findMany({
+      where: { region_id: regionId },
+      include: {
+        user: true,
+        region: true
+      }
+    });
+
+    if (reclams.length === 0) {
+      return res.status(404).json({ message: 'No reclamations found for this region' });
+    }
+
+    return res.json(reclams);
+  } catch (error: any) {
+    console.error('Error in getReclamsByRegion:', error);
+    return res.status(500).json({ error: error.message });
+  }
+};
+
+export const getReclamsByPriority = async (req: Request, res: Response) => {
+  try {
+    const priorityParam = req.params.priority.toLowerCase();
+    const validPriorities = Object.values(Priority);
+
+    if (!validPriorities.includes(priorityParam as Priority)) {
+      return res.status(400).json({ error: 'Invalid priority. Must be one of: low, medium, high' });
+    }
+
+    const reclams = await prisma.reclam.findMany({
+      where: {
+        priority: {
+          equals: priorityParam as Priority
+        }
+      },
+      include: {
+        user: true,
+        region: true
+      }
+    });
+
+    if (reclams.length === 0) {
+      return res.status(404).json({ message: 'No reclamations found with this priority' });
+    }
+
+    return res.json(reclams);
+  } catch (error: any) {
+    console.error('Error in getReclamsByPriority:', error);
     return res.status(500).json({ error: error.message });
   }
 };

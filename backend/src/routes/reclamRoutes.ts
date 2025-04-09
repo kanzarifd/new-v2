@@ -1,43 +1,50 @@
 import express, { Router, Request, Response, NextFunction } from 'express';
 import {
   addReclam,
+  deleteReclam,
   getAllReclams,
   getReclamById,
-  updateReclam,
-  deleteReclam,
+  getReclamsByPriority,
+  getReclamsByRegion,
+  updateReclam
 } from '../controllers/reclamController';
 
 const router: Router = express.Router();
 
-// Helper function to wrap async controllers
 const asyncHandler = (
   fn: (req: Request, res: Response, next: NextFunction) => Promise<void>
 ) => (req: Request, res: Response, next: NextFunction) => {
   fn(req, res, next).catch(next);
 };
 
-// POST /api/reclams - Add new reclam
-router.post('/', asyncHandler(async (req: Request, res: Response) => {
-  await addReclam(req, res);
-}));
-
-// GET /api/reclams - Get all reclams
-router.get('/', asyncHandler(async (req: Request, res: Response) => {
+// GET /api/reclams - Get all reclams with optional priority filtering
+router.get('/', asyncHandler(async (req, res) => {
   await getAllReclams(req, res);
 }));
 
-// GET /api/reclams/:id - Get reclam by ID
-router.get('/:id', asyncHandler(async (req: Request, res: Response) => {
+// Get reclamations by region
+router.get('/region/:regionId', asyncHandler(async (req, res) => {
+  await getReclamsByRegion(req, res);
+}));
+
+// Get reclamations by priority
+router.get('/priority/:priority', asyncHandler(async (req, res) => {
+  await getReclamsByPriority(req, res);
+}));
+
+router.post('/', asyncHandler(async (req, res) => {
+  await addReclam(req, res);
+}));
+
+router.get('/:id', asyncHandler(async (req, res) => {
   await getReclamById(req, res);
 }));
 
-// PUT /api/reclams/:id - Update reclam
-router.put('/:id', asyncHandler(async (req: Request, res: Response) => {
+router.put('/:id', asyncHandler(async (req, res) => {
   await updateReclam(req, res);
 }));
 
-// DELETE /api/reclams/:id - Delete reclam
-router.delete('/:id', asyncHandler(async (req: Request, res: Response) => {
+router.delete('/:id', asyncHandler(async (req, res) => {
   await deleteReclam(req, res);
 }));
 

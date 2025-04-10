@@ -209,6 +209,69 @@ export const updateReclamStatus = async (req: Request, res: Response) => {
   }
 };
 
+export const updateReclam = async (req: Request, res: Response) => {
+  try {
+    const id = Number(req.params.id);
+    const {
+      title,
+      description,
+      status,
+      priority,
+      date_debut,
+      date_fin,
+      regionId,
+      userId,
+    } = req.body;
+
+    // Validate required fields
+    if (!title || !description || !status || !priority || !date_debut || !regionId || !userId) {
+      return res.status(400).json({ error: 'All fields are required' });
+    }
+
+    // Validate region
+    const region = await prisma.region.findUnique({ where: { id: Number(regionId) } });
+    if (!region) {
+      return res.status(404).json({ error: 'Region not found' });
+    }
+
+    // Validate user
+    const user = await prisma.user.findUnique({ where: { id: Number(userId) } });
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    // Validate reclam exists and check status
+    const existingReclam = await prisma.reclam.findUnique({ where: { id } });
+    if (!existingReclam) {
+      return res.status(404).json({ error: 'Reclamation not found' });
+    }
+
+    // Check if reclam can be updated based on status
+    if (existingReclam.status !== 'pending') {
+      return res.status(400).json({ error: 'Cannot update reclamation: it is currently in progress' });
+    }
+
+    const updatedReclam = await prisma.reclam.update({
+      where: { id },
+      data: {
+        title,
+        description,
+        status,
+        priority,
+        date_debut: new Date(date_debut),
+        date_fin: date_fin ? new Date(date_fin) : undefined,
+        region: { connect: { id: Number(regionId) } },
+        user: { connect: { id: Number(userId) } },
+      },
+    });
+
+    return res.json(updatedReclam);
+  } catch (error: any) {
+    console.error('Error in updateReclam:', error);
+    return res.status(500).json({ error: error.message });
+  }
+};
+
 export const deleteReclam = async (req: Request, res: Response) => {
   try {
     const id = Number(req.params.id);

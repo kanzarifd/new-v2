@@ -6,7 +6,8 @@ import {
   getReclamById,
   getReclamsByPriority,
   getReclamsByRegion,
-  updateReclamStatus
+  updateReclamStatus,
+  updateReclam
 } from '../controllers/reclamController';
 
 const router: Router = express.Router();
@@ -42,12 +43,17 @@ router.get('/:id', asyncHandler(async (req, res) => {
   await getReclamById(req, res);
 }));
 
+// Update reclam by ID
+router.put('/:id', asyncHandler(async (req, res) => {
+  await updateReclam(req, res);
+}));
+
 // Delete reclam by ID
 router.delete('/:id', asyncHandler(async (req, res) => {
   await deleteReclam(req, res);
 }));
 
-// ✅ Update status of a reclamation
+// Update status of a reclamation
 router.put('/status/:id', asyncHandler(async (req, res) => {
   await updateReclamStatus(req, res);
 }));

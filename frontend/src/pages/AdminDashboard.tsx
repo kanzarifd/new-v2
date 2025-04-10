@@ -482,8 +482,7 @@ const AdminDashboard = () => {
                 <TableRow>
                   <TableCell>Title</TableCell>
                   <TableCell>Description</TableCell>
-                  <TableCell>Region</TableCell>
-                  <TableCell>User</TableCell>
+                
                   <TableCell>Status</TableCell>
                   <TableCell>Start Date</TableCell>
                   <TableCell>End Date</TableCell>
@@ -494,8 +493,7 @@ const AdminDashboard = () => {
                   <TableRow key={reclam.id}>
                     <TableCell>{reclam.title}</TableCell>
                     <TableCell>{reclam.description}</TableCell>
-                    <TableCell>{reclam.region?.name}</TableCell>
-                    <TableCell>{reclam.user?.name}</TableCell>
+                  
                     <TableCell>{reclam.status}</TableCell>
                     <TableCell>{new Date(reclam.date_debut).toLocaleDateString()}</TableCell>
                     <TableCell>{reclam.date_fin ? new Date(reclam.date_fin).toLocaleDateString() : '-'}</TableCell>

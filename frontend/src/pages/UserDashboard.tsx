@@ -37,8 +37,8 @@ interface Reclam {
   id: number;
   title: string;
   description: string;
-  status: string;
-  priority: string;
+  status: 'pending' | 'in_progress' | 'resolved' | 'closed';
+  priority: 'high' | 'medium' | 'low';
   date_debut: string;
   date_fin: string;
   region_id: number;
@@ -50,6 +50,17 @@ interface Region {
   name: string;
 }
 
+interface FormValues {
+  title: string;
+  description: string;
+  status: 'pending' | 'in_progress' | 'resolved' | 'closed';
+  priority: 'high' | 'medium' | 'low';
+  date_debut: string;
+  date_fin: string;
+  regionId: number | null;
+  userId: number | null;
+}
+
 const UserDashboard = () => {
   const { user, token, logout } = useAuth();
   const [reclams, setReclams] = useState<Reclam[]>([]);
@@ -59,15 +70,15 @@ const UserDashboard = () => {
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [editingReclam, setEditingReclam] = useState<Reclam | null>(null);
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<FormValues>({
     title: '',
     description: '',
     status: 'pending',
     priority: 'medium',
     date_debut: '',
     date_fin: '',
-    region_id: '',
-    user_id: user?.id || '',
+    regionId: null,
+    userId: user?.id ? Number(user.id) : null,
   });
 
   const fetchReclams = async () => {
@@ -110,20 +121,77 @@ const UserDashboard = () => {
     fetchRegions();
   }, []);
 
+  const handleOpen = (reclam?: Reclam) => {
+    setOpen(true);
+    setEditingReclam(reclam || null);
+    if (reclam) {
+      setFormData({
+        title: reclam.title,
+        description: reclam.description,
+        status: reclam.status as FormValues['status'],
+        priority: reclam.priority as FormValues['priority'],
+        date_debut: reclam.date_debut,
+        date_fin: reclam.date_fin,
+        regionId: reclam.region_id || null,
+        userId: reclam.user_id || null,
+      });
+    } else {
+      setFormData({
+        title: '',
+        description: '',
+        status: 'pending',
+        priority: 'medium',
+        date_debut: '',
+        date_fin: '',
+        regionId: null,
+        userId: user?.id ? Number(user.id) : null,
+      });
+    }
+  };
+
+  const handleClose = () => {
+    setOpen(false);
+    setEditingReclam(null);
+    setFormData({
+      title: '',
+      description: '',
+      status: 'pending',
+      priority: 'medium',
+      date_debut: '',
+      date_fin: '',
+      regionId: null,
+      userId: user?.id ? Number(user.id) : null,
+    });
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
       setLoading(true);
       setError(null);
 
-      if (!formData.region_id) {
+      if (!formData.regionId) {
         throw new Error('Please select a region');
       }
 
+      // Check if we're updating an existing reclamation
+      if (editingReclam) {
+        // Check if the reclamation can be updated based on status
+        if (editingReclam.status !== 'pending') {
+          setError('Cannot update reclamation: it is currently in progress');
+          return;
+        }
+      }
+
       const data = {
-        ...formData,
-        region_id: Number(formData.region_id),
-        user_id: Number(user?.id),
+        title: formData.title,
+        description: formData.description,
+        status: formData.status,
+        priority: formData.priority,
+        date_debut: formData.date_debut,
+        date_fin: formData.date_fin,
+        regionId: formData.regionId,
+        userId: formData.userId,
       };
 
       const response = editingReclam
@@ -164,44 +232,6 @@ const UserDashboard = () => {
     } finally {
       setLoading(false);
     }
-  };
-
-  const handleOpen = (reclam?: Reclam) => {
-    setOpen(true);
-    setEditingReclam(reclam || null);
-    if (reclam) {
-      setFormData({
-        ...reclam,
-        region_id: reclam.region_id?.toString() || '',
-        user_id: user?.id || '',
-      });
-    } else {
-      setFormData({
-        title: '',
-        description: '',
-        status: 'pending',
-        priority: 'medium',
-        date_debut: '',
-        date_fin: '',
-        region_id: '',
-        user_id: user?.id || '',
-      });
-    }
-  };
-
-  const handleClose = () => {
-    setOpen(false);
-    setEditingReclam(null);
-    setFormData({
-      title: '',
-      description: '',
-      status: 'pending',
-      priority: 'medium',
-      date_debut: '',
-      date_fin: '',
-      region_id: '',
-      user_id: user?.id || '',
-    });
   };
 
   return (
@@ -331,14 +361,12 @@ const UserDashboard = () => {
                 <InputLabel>Status</InputLabel>
                 <Select
                   value={formData.status}
-                  onChange={(e) => setFormData({ ...formData, status: e.target.value })}
+                  onChange={(e) => setFormData({ ...formData, status: e.target.value as FormValues['status'] })}
                   label="Status"
                   required
+                  disabled={!editingReclam}
                 >
                   <MenuItem value="pending">Pending</MenuItem>
-                  <MenuItem value="in_progress">In Progress</MenuItem>
-                  <MenuItem value="resolved">Resolved</MenuItem>
-                  <MenuItem value="closed">Closed</MenuItem>
                 </Select>
               </FormControl>
 
@@ -346,26 +374,27 @@ const UserDashboard = () => {
                 <InputLabel>Priority</InputLabel>
                 <Select
                   value={formData.priority}
-                  onChange={(e) => setFormData({ ...formData, priority: e.target.value })}
+                  onChange={(e) => setFormData({ ...formData, priority: e.target.value as FormValues['priority'] })}
                   label="Priority"
                   required
                 >
-                  <MenuItem value="low">Low</MenuItem>
-                  <MenuItem value="medium">Medium</MenuItem>
                   <MenuItem value="high">High</MenuItem>
+                  <MenuItem value="medium">Medium</MenuItem>
+                  <MenuItem value="low">Low</MenuItem>
                 </Select>
               </FormControl>
 
               <FormControl fullWidth>
                 <InputLabel>Region</InputLabel>
                 <Select
-                  value={formData.region_id}
-                  onChange={(e) => setFormData({ ...formData, region_id: e.target.value })}
+                  value={formData.regionId || ''}
+                  onChange={(e) => setFormData({ ...formData, regionId: Number(e.target.value) || null })}
                   label="Region"
                   required
                 >
+                  <MenuItem value="">Select a region</MenuItem>
                   {regions.map((region) => (
-                    <MenuItem key={region.id} value={region.id.toString()}>
+                    <MenuItem key={region.id} value={region.id}>
                       {region.name}
                     </MenuItem>
                   ))}

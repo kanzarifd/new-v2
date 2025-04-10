@@ -45,12 +45,19 @@ interface Reclamation {
   description: string;
   status: 'pending' | 'in_progress' | 'resolved' | 'closed';
   priority: 'high' | 'medium' | 'low';
-  createdAt: string;
-  updatedAt: string;
-  userId: number;
-  user: {
+  regionId: number;
+  region: {
     name: string;
   };
+  userId: number;
+  user: {
+    id: number;
+    name: string;
+    email: string;
+    role: string;
+  };
+  createdAt: string;
+  updatedAt: string;
 }
 
 const AgentDashboard = () => {
@@ -121,17 +128,64 @@ const AgentDashboard = () => {
   const fetchReclams = useCallback(async () => {
     try {
       setLoading(true);
-      setError(null);
+      console.log('Fetching reclamations...');
       const response = await axios.get('http://localhost:8000/api/reclams');
-      setReclams(response.data);
-    } catch (err) {
-      setError('Failed to load reclamations');
+      console.log('Reclamations fetched:', response.data);
+      
+      // Fetch additional data for each reclamation
+      const reclamsWithDetails = await Promise.all(
+        response.data.map(async (reclam: any) => {
+          console.log('Processing reclamation:', reclam.id);
+          
+          // Fetch region data
+          let region = null;
+          try {
+            const regionResponse = await axios.get(`http://localhost:8000/api/regions/${reclam.regionId}`);
+            region = regionResponse.data;
+            console.log('Region fetched:', region);
+          } catch (error) {
+            console.error(`Error fetching region ${reclam.regionId}:`, error);
+            region = { name: 'Unknown Region' };
+          }
+          
+          // Fetch user data
+          let user = null;
+          try {
+            const userResponse = await axios.get(`http://localhost:8000/api/users/${reclam.userId}`);
+            user = userResponse.data;
+            console.log('User fetched:', user);
+          } catch (error) {
+            console.error(`Error fetching user ${reclam.userId}:`, error);
+            user = { name: 'Unknown User', email: '', role: 'Unknown' };
+          }
+          
+          return {
+            ...reclam,
+            region,
+            user
+          };
+        })
+      );
+      
+      console.log('All reclamations processed:', reclamsWithDetails);
+      setReclams(reclamsWithDetails);
+      setError(null);
+    } catch (error: unknown) {
+      console.error('Error in fetchReclams:', error);
+      if (axios.isAxiosError(error)) {
+        console.error('Response data:', error.response?.data);
+        console.error('Response status:', error.response?.status);
+      } else {
+        console.error('Unknown error:', error);
+      }
+      setError('Failed to fetch reclamations. Please check the console for details.');
     } finally {
       setLoading(false);
     }
   }, []);
 
   useEffect(() => {
+    console.log('Component mounted, fetching reclamations...');
     fetchReclams();
   }, [fetchReclams]);
 
@@ -547,6 +601,84 @@ const ReclamCard = ({ reclam, onEdit, onDelete }: {
   onEdit: (reclam: Reclamation) => void;
   onDelete: (id: number) => void;
 }) => {
+  const theme = useTheme();
+
+  type PaletteColor = 'error' | 'warning' | 'success' | 'primary' | 'secondary' | 'info' | 'default';
+
+  interface ColorConfig {
+    [key: string]: PaletteColor;
+  }
+
+  const priorityColors: ColorConfig = {
+    high: 'error',
+    medium: 'warning',
+    low: 'success'
+  };
+
+  const regionColors: ColorConfig = {
+    'Casablanca': 'primary',
+    'Rabat': 'secondary',
+    'Marrakech': 'info',
+    'Fes': 'warning',
+    'Agadir': 'success'
+  };
+
+  const userColors: ColorConfig = {
+    'agent': 'primary',
+    'admin': 'secondary',
+    'client': 'info'
+  };
+
+  const getRegionColor = (regionName: string): PaletteColor => {
+    return regionColors[regionName as keyof typeof regionColors] || 'default';
+  };
+
+  const getUserColor = (userRole: string): PaletteColor => {
+    return userColors[userRole as keyof typeof userColors] || 'default';
+  };
+
+  const getPriorityColor = (priority: string): PaletteColor => {
+    return priorityColors[priority as keyof typeof priorityColors] || 'default';
+  };
+
+  const getBackgroundColor = (color: PaletteColor) => {
+    switch (color) {
+      case 'error':
+        return theme.palette.error.light;
+      case 'warning':
+        return theme.palette.warning.light;
+      case 'success':
+        return theme.palette.success.light;
+      case 'primary':
+        return theme.palette.primary.light;
+      case 'secondary':
+        return theme.palette.secondary.light;
+      case 'info':
+        return theme.palette.info.light;
+      default:
+        return theme.palette.grey[200];
+    }
+  };
+
+  const getTextColor = (color: PaletteColor) => {
+    switch (color) {
+      case 'error':
+        return theme.palette.error.contrastText;
+      case 'warning':
+        return theme.palette.warning.contrastText;
+      case 'success':
+        return theme.palette.success.contrastText;
+      case 'primary':
+        return theme.palette.primary.contrastText;
+      case 'secondary':
+        return theme.palette.secondary.contrastText;
+      case 'info':
+        return theme.palette.info.contrastText;
+      default:
+        return theme.palette.text.primary;
+    }
+  };
+
   const [{ isDragging }, drag] = useDrag(() => ({
     type: 'reclam',
     item: { id: reclam.id },
@@ -554,12 +686,6 @@ const ReclamCard = ({ reclam, onEdit, onDelete }: {
       isDragging: !!monitor.isDragging(),
     }),
   }));
-
-  const priorityColors: Record<string, string> = {
-    high: 'error',
-    medium: 'warning',
-    low: 'success'
-  };
 
   return (
     <Card
@@ -584,7 +710,11 @@ const ReclamCard = ({ reclam, onEdit, onDelete }: {
           <Chip 
             label={reclam.priority} 
             size="small" 
-            color={priorityColors[reclam.priority] as any}
+            color={getPriorityColor(reclam.priority)}
+            sx={{
+              backgroundColor: getBackgroundColor(getPriorityColor(reclam.priority)),
+              color: getTextColor(getPriorityColor(reclam.priority))
+            }}
           />
         </Box>
         
@@ -592,23 +722,46 @@ const ReclamCard = ({ reclam, onEdit, onDelete }: {
           {reclam.description}
         </Typography>
         
-        <Typography variant="caption" color="text.secondary">
-          Created: {format(new Date(reclam.createdAt), 'PP')}
-        </Typography>
-        
         <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 2 }}>
-          <Avatar sx={{ width: 32, height: 32 }} />
-          <Box>
-            <Tooltip title="Edit">
-              <IconButton size="small" onClick={() => onEdit(reclam)}>
-                <EditIcon fontSize="small" />
-              </IconButton>
-            </Tooltip>
-            <Tooltip title="Delete">
-              <IconButton size="small" onClick={() => onDelete(reclam.id)}>
-                <DeleteIcon fontSize="small" />
-              </IconButton>
-            </Tooltip>
+          <Box sx={{ display: 'flex', alignItems: 'center' }}>
+            <Typography variant="subtitle2" color="text.secondary" sx={{ mr: 1 }}>
+              Region:
+            </Typography>
+            <Chip
+              label={reclam.region?.name || 'Unknown Region'}
+              size="small"
+              color={getRegionColor(reclam.region?.name || '')}
+              sx={{
+                backgroundColor: getBackgroundColor(getRegionColor(reclam.region?.name || '')),
+                color: getTextColor(getRegionColor(reclam.region?.name || ''))
+              }}
+            />
+          </Box>
+          
+          <Box sx={{ display: 'flex', alignItems: 'center' }}>
+            <Typography variant="caption" color="text.secondary">
+              Created: {format(new Date(reclam.createdAt), 'PP')}
+            </Typography>
+          </Box>
+        </Box>
+
+        <Box sx={{ display: 'flex', alignItems: 'center', mt: 2 }}>
+          <Avatar sx={{ width: 32, height: 32 }}>
+            {reclam.user?.name ? reclam.user.name[0].toUpperCase() : 'U'}
+          </Avatar>
+          <Box sx={{ ml: 1 }}>
+            <Chip
+              label={reclam.user?.name || 'Unknown User'}
+              size="small"
+              color={getUserColor(reclam.user?.role || '')}
+              sx={{
+                backgroundColor: getBackgroundColor(getUserColor(reclam.user?.role || '')),
+                color: getTextColor(getUserColor(reclam.user?.role || ''))
+              }}
+            />
+            <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5 }}>
+              {reclam.user?.email || ''}
+            </Typography>
           </Box>
         </Box>
       </CardContent>

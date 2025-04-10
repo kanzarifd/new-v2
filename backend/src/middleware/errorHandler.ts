@@ -14,6 +14,11 @@ export const errorHandler = (
   const status = err.status || 500;
   const message = err.message || 'Internal server error';
 
+  if (!res || typeof res.status !== 'function') {
+    console.error('Invalid response object:', res);
+    return;
+  }
+
   // For development, include error details but prevent circular references
   if (process.env.NODE_ENV === 'development') {
     const errorDetails = {

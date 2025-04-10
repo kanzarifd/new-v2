@@ -13,108 +13,89 @@ import {
 
 // Helper function to wrap async controllers
 const asyncHandler = (
-  fn: (req: Request, res: Response) => Promise<any>
+  fn: (req: Request, res: Response, next: NextFunction) => Promise<any>
 ) => (req: Request, res: Response, next: NextFunction) => {
-  fn(req, res).catch((err: any) => {
-    console.error('Route error:', {
-      message: err.message,
-      stack: err.stack,
-      name: err.name
-    });
-    next(err);
-  });
+  fn(req, res, next).catch(next);
 };
 
 const router: Router = express.Router();
 
 // User routes
-router.post('/', asyncHandler(async (req: Request, res: Response) => {
+router.post('/', asyncHandler(async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const response = await addUser(req, res);
-    return response;
-  } catch (error: any) {
-    console.error('Route-level error:', error);
-    throw error;
+    await addUser(req, res);
+  } catch (error) {
+    next(error);
   }
 }));
 
-router.get('/', asyncHandler(async (req: Request, res: Response) => {
+router.get('/', asyncHandler(async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const response = await getAllUsers(req, res);
-    return response;
-  } catch (error: any) {
-    console.error('Route-level error:', error);
-    throw error;
+    await getAllUsers(req, res);
+  } catch (error) {
+    next(error);
   }
 }));
 
-router.delete('/:id', asyncHandler(async (req: Request, res: Response) => {
+router.delete('/:id', asyncHandler(async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const response = await deleteUser(req, res);
-    return response;
-  } catch (error: any) {
-    console.error('Route-level error:', error);
-    throw error;
+    await deleteUser(req, res);
+  } catch (error) {
+    next(error);
   }
 }));
 
-router.get('/:id', asyncHandler(async (req: Request, res: Response) => {
+router.get('/:id', asyncHandler(async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const response = await getUserById(req, res);
-    return response;
-  } catch (error: any) {
-    console.error('Route-level error:', error);
-    throw error;
+    await getUserById(req, res);
+  } catch (error) {
+    next(error);
   }
 }));
 
-router.put('/:id', asyncHandler(async (req: Request, res: Response) => {
+router.put('/:id', asyncHandler(async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const response = await updateUser(req, res);
-    return response;
-  } catch (error: any) {
-    console.error('Route-level error:', error);
-    throw error;
+    await updateUser(req, res);
+  } catch (error) {
+    next(error);
   }
 }));
 
 // Auth routes
-router.post('/login', asyncHandler(async (req: Request, res: Response) => {
+router.post('/login', asyncHandler(async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const response = await login(req, res);
-    return response;
-  } catch (error: any) {
-    console.error('Route-level error:', error);
-    throw error;
+    await login(req, res);
+  } catch (error) {
+    next(error);
   }
 }));
 
 // Password reset routes
-router.post('/password/reset', asyncHandler(async (req: Request, res: Response) => {
+router.post('/password/reset', asyncHandler(async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const response = await requestPasswordReset(req, res);
-    return response;
-  } catch (error: any) {
-    console.error('Route-level error:', error);
-    throw error;
+    await requestPasswordReset(req, res);
+  } catch (error) {
+    next(error);
   }
 }));
 
-router.post('/password/reset/:token', asyncHandler(async (req: Request, res: Response) => {
+router.post('/password/reset/:token', asyncHandler(async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const response = await resetPassword(req, res);
-    return response;
-  } catch (error: any) {
-    console.error('Route-level error:', error);
-    throw error;
+    await resetPassword(req, res);
+  } catch (error) {
+    next(error);
   }
 }));
 
 // Get users by role
-router.get('/role/:role', asyncHandler(async (req: Request, res: Response) => {
-  const { role } = req.params;
-  const users = await getUsersByRole(req, res, role);
-  res.json(users);
+router.get('/role/:role', asyncHandler(async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { role } = req.params;
+    const users = await getUsersByRole(req, res, role);
+    res.json(users);
+  } catch (error) {
+    next(error);
+  }
 }));
 
 export { router };

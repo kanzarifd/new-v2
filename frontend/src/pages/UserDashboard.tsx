@@ -166,50 +166,45 @@ const UserDashboard = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
     try {
       setLoading(true);
-      setError(null);
-
-      if (!formData.regionId) {
-        throw new Error('Please select a region');
+      
+      // Ensure all required fields have values
+      if (!formData.title || !formData.description || !formData.status || !formData.priority || !formData.regionId || !formData.userId) {
+        setError('Please fill in all required fields');
+        return;
       }
 
-      // Check if we're updating an existing reclamation
-      if (editingReclam) {
-        // Check if the reclamation can be updated based on status
-        if (editingReclam.status !== 'pending') {
-          setError('Cannot update reclamation: it is currently in progress');
-          return;
-        }
-      }
-
-      const data = {
-        title: formData.title,
-        description: formData.description,
-        status: formData.status,
-        priority: formData.priority,
-        date_debut: formData.date_debut,
-        date_fin: formData.date_fin,
-        regionId: formData.regionId,
-        userId: formData.userId,
+      // Format dates if they exist
+      const formattedData = {
+        ...formData,
+        date_debut: formData.date_debut ? new Date(formData.date_debut).toISOString() : undefined,
+        date_fin: formData.date_fin ? new Date(formData.date_fin).toISOString() : undefined,
+        region_id: formData.regionId,
+        user_id: formData.userId
       };
 
-      const response = editingReclam
-        ? await axios.put(`http://localhost:8000/api/reclams/${editingReclam.id}`, data, {
-            headers: { Authorization: `Bearer ${token}` },
-          })
-        : await axios.post('http://localhost:8000/api/reclams', data, {
-            headers: { Authorization: `Bearer ${token}` },
-          });
+      const url = editingReclam 
+        ? `http://localhost:8000/api/reclams/${editingReclam.id}`
+        : 'http://localhost:8000/api/reclams';
 
-      setSuccessMessage(
-        editingReclam ? 'Reclamation updated successfully' : 'Reclamation added successfully'
-      );
+      const method = editingReclam ? 'PUT' : 'POST';
+      
+      await axios({
+        url,
+        method,
+        headers: { Authorization: `Bearer ${token}` },
+        data: formattedData
+      });
+
+      setSuccessMessage(editingReclam ? 'Reclamation updated successfully' : 'Reclamation created successfully');
+      setOpen(false);
       fetchReclams();
-      handleClose();
-    } catch (err: any) {
-      setError(err.response?.data?.error || 'Failed to process reclamation');
-      console.error('Error processing reclamation:', err);
+      
+    } catch (err) {
+      setError('Failed to save reclamation');
+      console.error('Error saving reclamation:', err);
     } finally {
       setLoading(false);
     }

@@ -29,9 +29,7 @@ import {
   InputLabel,
   Select,
   MenuItem,
-  SelectChangeEvent,
-  Snackbar
-} from '@mui/material';
+  SelectChangeEvent} from '@mui/material';
 import {
   AdapterDateFns
 } from '@mui/x-date-pickers/AdapterDateFns';
@@ -39,8 +37,10 @@ import { LocalizationProvider, DatePicker as MuiDatePicker } from '@mui/x-date-p
 import { format } from 'date-fns';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
+import LogoutIcon from '@mui/icons-material/Logout';
 import axios from 'axios';
 import { useSnackbar } from '../components/SnackbarProvider';
+import AdminDashboardStats from '../components/AdminDashboardStats';
 
 interface RegionFormData {
   name: string;
@@ -104,6 +104,8 @@ const AdminDashboard = () => {
   const [selectedUserRole, setSelectedUserRole] = useState<string>('user');
   const [loadingUsers, setLoadingUsers] = useState(false);
   const [usersError, setUsersError] = useState<string | null>(null);
+
+  const [reclamations, setReclamations] = useState([]);
 
   const fetchRegions = async () => {
     try {
@@ -256,6 +258,19 @@ const AdminDashboard = () => {
     fetchAllReclams();
   }, []);
 
+  useEffect(() => {
+    const fetchReclamations = async () => {
+      try {
+        const response = await axios.get('http://localhost:8000/api/reclams');
+        setReclamations(response.data);
+      } catch (error) {
+        console.error('Error fetching reclamations:', error);
+        enqueueSnackbar('Error loading reclamations', { variant: 'error' });
+      }
+    };
+    fetchReclamations();
+  }, []);
+
   // Filter reclamations based on selected priority
   const filteredReclams = priorityReclams.filter(reclam => 
     reclam.priority === selectedPriority
@@ -330,14 +345,23 @@ const AdminDashboard = () => {
 
   return (
     <Box sx={{ p: 3 }}>
-      <Typography variant="h4" gutterBottom>Admin Dashboard</Typography>
-
-      <Box sx={{ display: 'flex', gap: 2, mb: 3 }}>
-        <Button variant="contained" color="primary" onClick={() => handleOpen()}>
-          New Project
+      {/* Dashboard Header */}
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 4 }}>
+        <Typography variant="h4" component="h1">
+          Admin Dashboard
+        </Typography>
+        <Button
+          variant="contained"
+          color="primary"
+          startIcon={<LogoutIcon />}
+          onClick={handleLogout}
+        >
+          Logout
         </Button>
-        <Button variant="outlined" onClick={handleBack}>Back</Button>
       </Box>
+
+      {/* Statistics and Charts */}
+      <AdminDashboardStats reclamations={reclamations} />
 
       {/* Regions list */}
       <Paper sx={{ p: 2, mb: 3 }}>
@@ -636,10 +660,6 @@ const AdminDashboard = () => {
           </DialogActions>
         </form>
       </Dialog>
-
-      <Button onClick={handleLogout} color="error" sx={{ mt: 2 }}>
-        Logout
-      </Button>
     </Box>
   );
 };

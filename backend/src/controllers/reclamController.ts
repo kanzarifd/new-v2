@@ -1,13 +1,6 @@
 import { Request, Response } from 'express';
-import { PrismaClient } from '@prisma/client';
+import { prisma } from '../config/database';
 import { Priority } from '../types/reclam';
-
-const prisma = new PrismaClient();
-
-function parseDate(dateString: string): Date | null {
-  const date = new Date(dateString);
-  return isNaN(date.getTime()) ? null : date;
-}
 
 export const addReclam = async (req: Request, res: Response) => {
   try {
@@ -89,19 +82,60 @@ export const getReclamsByRegion = async (req: Request, res: Response) => {
       return res.status(400).json({ error: 'Invalid region ID' });
     }
 
+    // First get reclamations without including user
     const reclams = await prisma.reclam.findMany({
       where: { region_id: regionId },
       include: {
-        user: true,
         region: true
       }
     });
 
+    // Now fetch valid users for each reclam
+    const reclamsWithUsers = await Promise.all(
+      reclams.map(async (reclam) => {
+        try {
+          const user = await prisma.user.findUnique({
+            where: { id: reclam.user_id }
+          });
+
+          if (!user) {
+            console.log(`Warning: Reclamation ${reclam.id} has invalid user reference: ${reclam.user_id}`);
+            return null;
+          }
+
+          return {
+            ...reclam,
+            user,
+            region: reclam.region
+          };
+        } catch (error) {
+          console.error(`Error fetching user for reclam ${reclam.id}:`, error);
+          return null;
+        }
+      })
+    );
+
+    // Filter out null values (invalid reclams)
+    const validReclams = reclamsWithUsers.filter((reclam): reclam is typeof reclams[0] & {
+      user: {
+        id: number;
+        name: string;
+        email: string;
+      }
+    } => reclam !== null);
+
+    // If we found any valid reclams, return them
+    if (validReclams.length > 0) {
+      return res.json(validReclams);
+    }
+
+    // If we found no reclams at all
     if (reclams.length === 0) {
       return res.status(404).json({ message: 'No reclamations found for this region' });
     }
 
-    return res.json(reclams);
+    // If we found reclams but all had invalid users
+    return res.status(200).json([]);
   } catch (error: any) {
     console.error('Error in getReclamsByRegion:', error);
     return res.status(500).json({ error: error.message });
@@ -140,86 +174,38 @@ export const getReclamsByPriority = async (req: Request, res: Response) => {
   }
 };
 
-export const updateReclam = async (req: Request, res: Response) => {
+export const updateReclamStatus = async (req: Request, res: Response) => {
+  const { id } = req.params;
+  const { status } = req.body;
+
+  // Define valid status values
+  const validStatuses = ['pending', 'in_progress', 'resolved', 'closed'];
+
   try {
-    const id = Number(req.params.id);
-    const {
-      title,
-      description,
-      status,
-      priority,
-      date_debut,
-      date_fin,
-      region_id,
-      user_id,
-    } = req.body;
-
-    const updateData: any = {};
-
-    // Add non-date fields if provided
-    if (title !== undefined) updateData.title = title;
-    if (description !== undefined) updateData.description = description;
-    if (status !== undefined) updateData.status = status;
-    if (priority !== undefined) updateData.priority = priority;
-
-    // Only validate and add dates if they are provided
-    if (date_debut !== undefined) {
-      const debutDate = parseDate(date_debut);
-      if (!debutDate) {
-        return res.status(400).json({ 
-          error: 'Invalid date_debut format. Please provide a valid date in ISO format (YYYY-MM-DD)' 
-        });
-      }
-      updateData.date_debut = debutDate;
+    // Validate status
+    if (!validStatuses.includes(status)) {
+      return res.status(400).json({ error: 'Invalid status. Must be one of: pending, in_progress, resolved, closed' });
     }
 
-    if (date_fin !== undefined) {
-      const finDate = parseDate(date_fin);
-      if (!finDate) {
-        return res.status(400).json({ 
-          error: 'Invalid date_fin format. Please provide a valid date in ISO format (YYYY-MM-DD)' 
-        });
-      }
-      updateData.date_fin = finDate;
-    }
-
-    // Only update region if it exists and is not null/undefined
-    if (region_id !== undefined && region_id !== null) {
-      const region = await prisma.region.findUnique({ where: { id: Number(region_id) } });
-      if (!region) {
-        return res.status(404).json({ 
-          error: 'Region not found' 
-        });
-      }
-      updateData.region = { connect: { id: Number(region_id) } };
-    }
-
-    // Only update user if it exists and is not null/undefined
-    if (user_id !== undefined && user_id !== null) {
-      const user = await prisma.user.findUnique({ where: { id: Number(user_id) } });
-      if (!user) {
-        return res.status(404).json({ 
-          error: 'User not found' 
-        });
-      }
-      updateData.user = { connect: { id: Number(user_id) } };
-    }
-
-    if (Object.keys(updateData).length === 0) {
-      return res.status(400).json({ 
-        error: 'No fields to update were provided' 
-      });
-    }
-
-    const updated = await prisma.reclam.update({
-      where: { id },
-      data: updateData,
+    // Check if reclam exists
+    const existingReclam = await prisma.reclam.findUnique({
+      where: { id: Number(id) }
     });
 
-    return res.json(updated);
-  } catch (error: any) {
-    console.error('Error in updateReclam:', error);
-    return res.status(500).json({ error: error.message });
+    if (!existingReclam) {
+      return res.status(404).json({ error: 'Reclamation not found' });
+    }
+
+    // Update the status
+    const updatedReclam = await prisma.reclam.update({
+      where: { id: Number(id) },
+      data: { status }
+    });
+
+    res.json(updatedReclam);
+  } catch (error) {
+    console.error('Error updating reclamation status:', error);
+    res.status(500).json({ error: 'Failed to update reclamation status' });
   }
 };
 

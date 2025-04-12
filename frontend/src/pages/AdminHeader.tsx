@@ -1,17 +1,18 @@
-import React, { useState } from 'react';
-import { 
-  AppBar, 
-  Toolbar, 
-  IconButton, 
-  Typography, 
-  Avatar, 
-  Menu, 
+import React from 'react';
+import {
+  AppBar,
+  Toolbar,
+  IconButton,
+  Typography,
+  Avatar,
+  Menu,
   MenuItem,
   Box,
   Divider,
   ListItemIcon,
-  Button,
-  useTheme
+  useMediaQuery,
+  useTheme,
+  Tooltip,
 } from '@mui/material';
 import {
   Brightness4 as DarkModeIcon,
@@ -21,24 +22,25 @@ import {
   Logout as LogoutIcon,
   Menu as MenuIcon
 } from '@mui/icons-material';
+import { useThemeContext } from '../contexts/ThemeContext';
 
 interface AdminHeaderProps {
   toggleDrawer: () => void;
-  toggleColorMode: () => void;
   onLogout: () => void;
   isMobile: boolean;
 }
 
-const AdminHeader: React.FC<AdminHeaderProps> = ({ 
-  toggleDrawer, 
-  toggleColorMode,
+const AdminHeader: React.FC<AdminHeaderProps> = ({
+  toggleDrawer,
   onLogout,
   isMobile
 }) => {
+  const { mode, toggleColorMode } = useThemeContext();
   const theme = useTheme();
-  const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
+  const isMobileScreen = useMediaQuery(theme.breakpoints.down('sm'));
+  const [anchorEl, setAnchorEl] = React.useState<null | HTMLElement>(null);
 
-  const handleMenuOpen = (event: React.MouseEvent<HTMLElement>) => {
+  const handleMenu = (event: React.MouseEvent<HTMLElement>) => {
     setAnchorEl(event.currentTarget);
   };
 
@@ -47,20 +49,18 @@ const AdminHeader: React.FC<AdminHeaderProps> = ({
   };
 
   return (
-    <AppBar 
-      position="fixed" 
-      sx={{ 
-        zIndex: (theme) => theme.zIndex.drawer + 1,
+    <AppBar
+      position="fixed"
+      elevation={1}
+      sx={{
+        zIndex: theme.zIndex.drawer + 1,
         backgroundColor: theme.palette.background.paper,
         color: theme.palette.text.primary,
-        boxShadow: 'none',
         borderBottom: `1px solid ${theme.palette.divider}`,
-        width: { sm: `calc(100% - ${240}px)` },
-        ml: { sm: `${240}px` },
       }}
     >
-      <Toolbar sx={{ justifyContent: 'space-between' }}>
-        {/* Left Section - Menu and Title */}
+      <Toolbar sx={{ justifyContent: 'space-between', px: { xs: 2, sm: 3 } }}>
+        {/* Left Side */}
         <Box sx={{ display: 'flex', alignItems: 'center' }}>
           {isMobile && (
             <IconButton
@@ -72,85 +72,94 @@ const AdminHeader: React.FC<AdminHeaderProps> = ({
               <MenuIcon />
             </IconButton>
           )}
-
           <Typography
-            variant="h4"
-            component="h1"
-            sx={{ 
+            variant="h6"
+            noWrap
+            component="div"
+            sx={{
               fontWeight: 700,
-              letterSpacing: 1,
-              background: theme.palette.mode === 'dark' 
-                ? 'linear-gradient(45deg, #90CAF9, #64B5F6)' 
-                : 'linear-gradient(45deg, #1976D2, #0D47A1)',
+              background: `linear-gradient(to right, ${theme.palette.primary.main}, ${theme.palette.secondary.main})`,
               WebkitBackgroundClip: 'text',
-              WebkitTextFillColor: 'transparent'
+              WebkitTextFillColor: 'transparent',
+              textTransform: 'uppercase',
+              fontSize: { xs: '1rem', sm: '1.25rem', md: '1.5rem' },
+              letterSpacing: 1,
             }}
           >
             Admin Dashboard
           </Typography>
         </Box>
 
-        {/* Right Section - Theme and Profile */}
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-          <IconButton color="inherit" onClick={toggleColorMode}>
-            {theme.palette.mode === 'dark' ? <LightModeIcon /> : <DarkModeIcon />}
-          </IconButton>
+        {/* Right Side */}
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+          <Tooltip title={mode === 'dark' ? 'Light mode' : 'Dark mode'}>
+            <IconButton color="inherit" onClick={toggleColorMode}>
+              {mode === 'dark' ? <LightModeIcon /> : <DarkModeIcon />}
+            </IconButton>
+          </Tooltip>
 
-          <IconButton
-            edge="end"
-            aria-label="account of current user"
-            onClick={handleMenuOpen}
-            color="inherit"
-          >
-            <Avatar 
-              sx={{ width: 32, height: 32, bgcolor: theme.palette.primary.main }} 
-              alt="User Avatar"
-            />
-          </IconButton>
-        </Box>
+          <Tooltip title="Account settings">
+            <IconButton onClick={handleMenu} sx={{ p: 0 }}>
+              <Avatar sx={{ bgcolor: theme.palette.primary.main, width: 36, height: 36 }} />
+            </IconButton>
+          </Tooltip>
 
-        {/* Profile Menu */}
-        <Menu
-          anchorEl={anchorEl}
-          open={Boolean(anchorEl)}
-          onClose={handleClose}
-          onClick={handleClose}
-          PaperProps={{
-            elevation: 3,
-            sx: {
-              overflow: 'visible',
-              mt: 1.5,
-              '& .MuiAvatar-root': {
-                width: 32,
-                height: 32,
-                ml: -0.5,
-                mr: 1,
+          <Menu
+            anchorEl={anchorEl}
+            open={Boolean(anchorEl)}
+            onClose={handleClose}
+            onClick={handleClose}
+            PaperProps={{
+              elevation: 4,
+              sx: {
+                mt: 1.5,
+                overflow: 'visible',
+                minWidth: 180,
+                borderRadius: 2,
+                '& .MuiAvatar-root': {
+                  width: 32,
+                  height: 32,
+                  ml: -0.5,
+                  mr: 1,
+                },
+                '&:before': {
+                  content: '""',
+                  display: 'block',
+                  position: 'absolute',
+                  top: 0,
+                  right: 14,
+                  width: 10,
+                  height: 10,
+                  bgcolor: 'background.paper',
+                  transform: 'translateY(-50%) rotate(45deg)',
+                  zIndex: 0,
+                },
               },
-            },
-          }}
-          transformOrigin={{ horizontal: 'right', vertical: 'top' }}
-          anchorOrigin={{ horizontal: 'right', vertical: 'bottom' }}
-        >
-          <MenuItem onClick={handleClose}>
-            <ListItemIcon>
-              <AccountIcon fontSize="small" />
-            </ListItemIcon>
-            Profile
-          </MenuItem>
-          <MenuItem onClick={handleClose}>
-            <ListItemIcon>
-              <SettingsIcon fontSize="small" />
-            </ListItemIcon>
-            Settings
-          </MenuItem>
-          <Divider />
-          <MenuItem onClick={onLogout}>
-            <ListItemIcon>
-              <LogoutIcon fontSize="small" />
-            </ListItemIcon>
-            Logout
-          </MenuItem>
-        </Menu>
+            }}
+            transformOrigin={{ horizontal: 'right', vertical: 'top' }}
+            anchorOrigin={{ horizontal: 'right', vertical: 'bottom' }}
+          >
+            <MenuItem>
+              <ListItemIcon>
+                <AccountIcon fontSize="small" />
+              </ListItemIcon>
+              Profile
+            </MenuItem>
+            <MenuItem>
+              <ListItemIcon>
+                <SettingsIcon fontSize="small" />
+              </ListItemIcon>
+              Settings
+            </MenuItem>
+            <Divider />
+            <MenuItem onClick={onLogout}>
+              <ListItemIcon>
+                <LogoutIcon fontSize="small" />
+              </ListItemIcon>
+              Logout
+            </MenuItem>
+          </Menu>
+        </Box>
       </Toolbar>
     </AppBar>
   );

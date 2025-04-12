@@ -1,45 +1,57 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import {
+  Paper,
+  Typography,
+  Tooltip,
+  Alert,
+  CircularProgress,
+  TableContainer,
+  Table,
+  TableHead,
+  TableRow,
+  TableCell,
+  TableBody,
+  List,
+  ListItem,
+  ListItemText,
+  IconButton,
+  Divider,
   Box,
+  Select,
+  MenuItem,
+  SelectChangeEvent,
   Button,
-  useTheme,
-  useMediaQuery,
   TextField,
   Dialog,
   DialogTitle,
   DialogContent,
   DialogActions,
-  IconButton,
-  Paper,
-  List,
-  ListItem,
-  ListItemText,
-  Divider,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
-  CircularProgress,
-  Alert,
   FormControl,
   InputLabel,
-  Select,
-  MenuItem,
-  SelectChangeEvent,
-  Typography
+  useTheme,
+  useMediaQuery,
+  Card,
+  Pagination,
+  TableSortLabel,
+  Chip,
+  Avatar,
+  Skeleton
 } from '@mui/material';
+import {
+  LocationOn as LocationOnIcon,
+  Assignment as AssignmentIcon,
+  Edit as EditIcon,
+  Delete as DeleteIcon,
+  Logout as LogoutIcon,
+  Menu as MenuIcon,
+  CalendarToday as CalendarTodayIcon
+} from '@mui/icons-material';
 import {
   AdapterDateFns
 } from '@mui/x-date-pickers/AdapterDateFns';
 import { LocalizationProvider, DatePicker as MuiDatePicker } from '@mui/x-date-pickers';
 import { format } from 'date-fns';
-import EditIcon from '@mui/icons-material/Edit';
-import DeleteIcon from '@mui/icons-material/Delete';
-import MenuIcon from '@mui/icons-material/Menu';
-import LogoutIcon from '@mui/icons-material/Logout';
 import axios from 'axios';
 import { useSnackbar } from '../components/SnackbarProvider';
 import AdminDashboardStats from '../components/AdminDashboardStats';
@@ -60,15 +72,15 @@ interface Reclam {
   id: number;
   title: string;
   description: string;
-  status: string;
-  priority: string;
+  status: 'completed' | 'pending' | 'active' | 'inactive';
+  priority: 'high' | 'medium' | 'low';
   date_debut: string;
   date_fin: string;
-  user: {
+  user?: {
     id: number;
     name: string;
   };
-  region: {
+  region?: {
     id: number;
     name: string;
   };
@@ -107,6 +119,29 @@ const AdminDashboard = () => {
   const [usersError, setUsersError] = useState<string | null>(null);
   const [reclamations, setReclamations] = useState([]);
 
+  // Table state
+  const [sortBy, setSortBy] = useState<keyof Reclam>('date_debut');
+  const [order, setOrder] = useState<'asc' | 'desc'>('desc');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [rowsPerPage, setRowsPerPage] = useState(10);
+  const [selectedReclam, setSelectedReclam] = useState<Reclam | null>(null);
+  const [confirmOpen, setConfirmOpen] = useState(false);
+
+  // Status color mapping
+  const statusColorMap: Record<Reclam['status'], 'error' | 'success' | 'warning' | 'primary'> = {
+    completed: 'success',
+    pending: 'warning',
+    active: 'primary',
+    inactive: 'error'
+  };
+
+  // Priority color mapping
+  const priorityColorMap: Record<Reclam['priority'], 'error' | 'warning' | 'success'> = {
+    high: 'error',
+    medium: 'warning',
+    low: 'success'
+  };
+
   const handleLogout = () => {
     localStorage.clear();
     navigate('/login', { replace: true });
@@ -114,10 +149,6 @@ const AdminDashboard = () => {
 
   const toggleDrawer = () => {
     setDrawerOpen(!drawerOpen);
-  };
-
-  const toggleColorMode = () => {
-    setMode(mode === 'light' ? 'dark' : 'light');
   };
 
   const fetchRegions = async () => {
@@ -134,19 +165,23 @@ const AdminDashboard = () => {
     fetchRegions();
   }, []);
 
-  const handleOpen = (region?: Region) => {
-    setOpen(true);
-    setError(null);
-    if (region) {
-      setEditingId(region.id);
-      setFormData({
-        name: region.name,
-        date_debut: region.date_debut,
-        date_fin: region.date_fin
-      });
+  const handleOpen = (item: Region | Reclam) => {
+    if ('title' in item) {
+      setSelectedReclam(item as Reclam);
     } else {
-      setEditingId(null);
-      setFormData({ name: '', date_debut: '', date_fin: '' });
+      setOpen(true);
+      setError(null);
+      if (item) {
+        setEditingId(item.id);
+        setFormData({
+          name: item.name,
+          date_debut: item.date_debut,
+          date_fin: item.date_fin
+        });
+      } else {
+        setEditingId(null);
+        setFormData({ name: '', date_debut: '', date_fin: '' });
+      }
     }
   };
 
@@ -321,7 +356,6 @@ const AdminDashboard = () => {
       <Box component="main" sx={{ flexGrow: 1, p: 3 }}>
         <AdminHeader
           toggleDrawer={toggleDrawer}
-          toggleColorMode={toggleColorMode}
           onLogout={handleLogout}
           isMobile={isMobile}
         />
@@ -335,102 +369,284 @@ const AdminDashboard = () => {
 
           {/* Regions list */}
           {activeSection === 'regions' && (
-            <Paper sx={{ p: 2, mb: 3 }}>
-              <Typography variant="h6">Existing Regions</Typography>
-              <List>
-                {regions.map((region) => (
-                  <React.Fragment key={region.id}>
-                    <ListItem
-                      sx={{
-                        '&:hover': {
-                          bgcolor: 'action.hover',
-                          cursor: 'pointer'
+            <Paper
+              elevation={3}
+              sx={{
+                p: 3,
+                mb: 4,
+                borderRadius: 2,
+                bgcolor: 'background.paper',
+                boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)',
+              }}
+            >
+              <Box sx={{ mb: 3 }}>
+                <Typography
+                  variant="h5"
+                  component="h2"
+                  sx={{
+                    fontWeight: 600,
+                    color: 'primary.main',
+                    mb: 1,
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 1,
+                  }}
+                >
+                  <LocationOnIcon sx={{ fontSize: 24 }} />
+                  Existing Regions
+                </Typography>
+                <Typography
+                  variant="subtitle1"
+                  color="text.secondary"
+                  sx={{
+                    opacity: 0.8,
+                  }}
+                >
+                  Manage your regions and their associated reclamations
+                </Typography>
+              </Box>
+
+              {/* Regions List */}
+              <Box sx={{ mb: 4 }}>
+                <Typography variant="h6" sx={{ mb: 2, display: 'flex', alignItems: 'center', gap: 1 }}>
+                  <LocationOnIcon sx={{ color: 'primary.main' }} />
+                  Regions
+                </Typography>
+                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                  {regions.map((region) => (
+                    <Card 
+                      key={region.id}
+                      elevation={2}
+                      sx={{ 
+                        borderLeft: selectedRegionId === region.id ? '4px solid' : 'none',
+                        borderColor: 'primary.main',
+                        transition: 'all 0.2s ease',
+                        '&:hover': { 
+                          boxShadow: 4,
+                          transform: 'translateY(-2px)'
                         }
                       }}
                     >
-                      <ListItemText
-                        primary={
-                          <Box
-                            component="span"
-                            sx={{
-                              display: 'inline-block',
-                              cursor: 'pointer',
-                              '&:hover': {
-                                color: 'primary.main'
-                              }
-                            }}
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleRegionSelect(region.id);
-                            }}
-                          >
-                            {region.name}
-                          </Box>
-                        }
-                        secondary={`From ${region.date_debut} to ${region.date_fin}`}
-                      />
-                      <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
-                        <IconButton onClick={(e) => {
-                          e.stopPropagation();
-                          handleOpen(region);
-                        }}>
+                      <ListItem
+                        button
+                        onClick={() => handleRegionSelect(region.id)}
+                        sx={{
+                          p: 2,
+                          bgcolor: selectedRegionId === region.id ? 'action.selected' : 'inherit'
+                        }}
+                      >
+                        <ListItemText
+                          primary={
+                            <Typography variant="subtitle1" fontWeight="medium">
+                              {region.name}
+                            </Typography>
+                          }
+                          secondary={
+                            <Box component="span" display="flex" alignItems="center" gap={1}>
+                              <CalendarTodayIcon fontSize="small" />
+                              {`${format(new Date(region.date_debut), 'dd MMM yyyy')} - 
+                              ${format(new Date(region.date_fin), 'dd MMM yyyy')}`}
+                            </Box>
+                          }
+                        />
+                        <IconButton 
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleOpen(region);
+                          }}
+                          size="small"
+                          sx={{ color: 'primary.main' }}
+                        >
                           <EditIcon />
                         </IconButton>
-                      </Box>
-                    </ListItem>
-                    <Divider />
-                  </React.Fragment>
-                ))}
-              </List>
+                      </ListItem>
+                    </Card>
+                  ))}
+                </Box>
+              </Box>
 
               {/* Reclamations for selected region */}
               {selectedRegionId && (
                 <>
-                  <Typography variant="h6" gutterBottom sx={{ mt: 3 }}>
+                  <Typography
+                    variant="h6"
+                    gutterBottom
+                    sx={{
+                      mt: 3,
+                      fontWeight: 600,
+                      color: 'primary.main',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 1,
+                    }}
+                  >
+                    <AssignmentIcon sx={{ fontSize: 20 }} />
                     Reclamations for {regions.find(r => r.id === selectedRegionId)?.name}
                   </Typography>
-                  
+
                   {reclamError && (
-                    <Alert severity="error" sx={{ mb: 2 }}>
+                    <Alert
+                      severity="error"
+                      sx={{
+                        mb: 2,
+                        borderRadius: 1,
+                      }}
+                    >
                       {reclamError}
                     </Alert>
                   )}
 
                   {loadingReclams && (
-                    <Box sx={{ display: 'flex', justifyContent: 'center', py: 3 }}>
-                      <CircularProgress />
+                    <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
+                      <CircularProgress color="primary" />
                     </Box>
                   )}
 
                   {!loadingReclams && reclams.length > 0 && (
-                    <TableContainer>
-                      <Table>
-                        <TableHead>
-                          <TableRow>
-                            <TableCell>Title</TableCell>
-                            <TableCell>Description</TableCell>
-                            <TableCell>Status</TableCell>
-                            <TableCell>Priority</TableCell>
-                            <TableCell>Start Date</TableCell>
-                            <TableCell>End Date</TableCell>
-                            <TableCell>User</TableCell>
-                          </TableRow>
-                        </TableHead>
-                        <TableBody>
-                          {reclams.map(reclam => (
-                            <TableRow key={reclam.id}>
-                              <TableCell>{reclam.title}</TableCell>
-                              <TableCell>{reclam.description}</TableCell>
-                              <TableCell>{reclam.status}</TableCell>
-                              <TableCell>{reclam.priority}</TableCell>
-                              <TableCell>{new Date(reclam.date_debut).toLocaleDateString()}</TableCell>
-                              <TableCell>{reclam.date_fin ? new Date(reclam.date_fin).toLocaleDateString() : '-'}</TableCell>
-                              <TableCell>{reclam.user?.name}</TableCell>
+                    <Box sx={{ width: '100%' }}>
+                      {/* Table Header */}
+                      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+                        <Typography variant="h6" sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                          <AssignmentIcon sx={{ color: 'primary.main' }} />
+                          Reclamations
+                        </Typography>
+                        <Box sx={{ display: 'flex', gap: 2 }}>
+                          <FormControl size="small" sx={{ width: 120 }}>
+                            <Select
+                              value={rowsPerPage}
+                              onChange={(e) => setRowsPerPage(Number(e.target.value))}
+                              displayEmpty
+                            >
+                              {[10, 25, 50].map((size) => (
+                                <MenuItem key={size} value={size}>
+                                  {size} per page
+                                </MenuItem>
+                              ))}
+                            </Select>
+                          </FormControl>
+                          <Pagination
+                            count={Math.ceil(reclams.length / rowsPerPage)}
+                            page={currentPage}
+                            onChange={(e, page) => setCurrentPage(page)}
+                            size="small"
+                            color="primary"
+                          />
+                        </Box>
+                      </Box>
+
+                      {/* Table */}
+                      <TableContainer component={Paper}>
+                        <Table>
+                          <TableHead>
+                            <TableRow>
+                              {[
+                                { id: 'title', label: 'Title' },
+                                { id: 'status', label: 'Status' },
+                                { id: 'priority', label: 'Priority' },
+                                { id: 'date_debut', label: 'Start Date' },
+                                { id: 'user', label: 'User' },
+                                { id: 'actions', label: '' }
+                              ].map((column) => (
+                                <TableCell key={column.id}>
+                                  {column.id !== 'actions' ? (
+                                    <TableSortLabel
+                                      active={sortBy === column.id}
+                                      direction={order}
+                                      onClick={() => {
+                                        if (sortBy === column.id) {
+                                          setOrder(order === 'asc' ? 'desc' : 'asc');
+                                        } else {
+                                          setSortBy(column.id as keyof Reclam);
+                                          setOrder('asc');
+                                        }
+                                      }}
+                                    >
+                                      {column.label}
+                                    </TableSortLabel>
+                                  ) : column.label}
+                                </TableCell>
+                              ))}
                             </TableRow>
+                          </TableHead>
+                          
+                          <TableBody>
+                            {reclams
+                              .slice((currentPage - 1) * rowsPerPage, currentPage * rowsPerPage)
+                              .sort((a, b) => {
+                                if (sortBy === 'date_debut') {
+                                  return order === 'asc'
+                                    ? new Date(a.date_debut).getTime() - new Date(b.date_debut).getTime()
+                                    : new Date(b.date_debut).getTime() - new Date(a.date_debut).getTime();
+                                }
+                                return 0;
+                              })
+                              .map((reclam) => (
+                                <TableRow
+                                  key={reclam.id}
+                                  sx={{
+                                    '&:hover': {
+                                      bgcolor: 'action.hover',
+                                    },
+                                  }}
+                                >
+                                  <TableCell>{reclam.title}</TableCell>
+                                  <TableCell>
+                                    <Chip 
+                                      label={reclam.status} 
+                                      size="small"
+                                      color={statusColorMap[reclam.status]}
+                                    />
+                                  </TableCell>
+                                  <TableCell>
+                                    <Chip 
+                                      label={reclam.priority} 
+                                      size="small"
+                                      color={priorityColorMap[reclam.priority]}
+                                    />
+                                  </TableCell>
+                                  <TableCell>
+                                    {format(new Date(reclam.date_debut), 'dd MMM yyyy')}
+                                  </TableCell>
+                                  <TableCell>
+                                    <Box display="flex" alignItems="center" gap={1}>
+                                      <Avatar sx={{ width: 24, height: 24, fontSize: 14 }}>
+                                        {reclam.user?.name?.charAt(0)}
+                                      </Avatar>
+                                      {reclam.user?.name}
+                                    </Box>
+                                  </TableCell>
+                                  <TableCell>
+                                    <IconButton size="small" onClick={() => handleOpen(reclam)}>
+                                      <EditIcon />
+                                    </IconButton>
+                                  </TableCell>
+                                </TableRow>
+                              ))}
+                          </TableBody>
+                        </Table>
+                      </TableContainer>
+
+                      {/* Loading Skeleton */}
+                      {loadingReclams && (
+                        <Box sx={{ p: 2 }}>
+                          {[...Array(3)].map((_, index) => (
+                            <Skeleton 
+                              key={index}
+                              variant="rectangular" 
+                              height={56} 
+                              sx={{ mb: 1, borderRadius: 1 }}
+                            />
                           ))}
-                        </TableBody>
-                      </Table>
-                    </TableContainer>
+                        </Box>
+                      )}
+
+                      {/* Error Message */}
+                      {reclamError && (
+                        <Alert severity="error" sx={{ mt: 2 }}>
+                          {reclamError}
+                        </Alert>
+                      )}
+                    </Box>
                   )}
                 </>
               )}

@@ -1,6 +1,6 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import { ThemeProvider, createTheme } from '@mui/material/styles';
+import { ThemeProvider } from './contexts/ThemeContext';
 import { AuthProvider } from './components/context/AuthContext';
 import ProtectedRoute from './components/ProtectedRoute';
 import { SnackbarProvider } from './components/SnackbarProvider';
@@ -13,21 +13,9 @@ import UserDashboard from './pages/UserDashboard';
 import ResetPassword from './pages/ResetPassword';
 import AgentDashboard from './pages/AgentDashboard';
 
-// Theme
-const theme = createTheme({
-  palette: {
-    primary: {
-      main: '#1976d2',
-    },
-    secondary: {
-      main: '#dc004e',
-    },
-  },
-});
-
 function App() {
   return (
-    <ThemeProvider theme={theme}>
+    <ThemeProvider>
       <AuthProvider>
         <SnackbarProvider>
           <Router>

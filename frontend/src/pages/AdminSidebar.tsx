@@ -1,9 +1,25 @@
-import React from 'react';
-import { Drawer, List, ListItem, ListItemIcon, ListItemText } from '@mui/material';
-import DashboardIcon from '@mui/icons-material/Dashboard';
-import MapIcon from '@mui/icons-material/Map';
-import PriorityHighIcon from '@mui/icons-material/PriorityHigh';
-import PeopleIcon from '@mui/icons-material/People';
+import React, { useState } from 'react';
+import {
+  Drawer,
+  List,
+  ListItem,
+  ListItemIcon,
+  ListItemText,
+  Box,
+  IconButton,
+  useTheme,
+  useMediaQuery,
+  Tooltip,
+  Divider,
+} from '@mui/material';
+import {
+  Dashboard as DashboardIcon,
+  Map as MapIcon,
+  PriorityHigh as PriorityHighIcon,
+  People as PeopleIcon,
+  Menu as MenuIcon,
+  MenuOpen as MenuOpenIcon,
+} from '@mui/icons-material';
 
 interface AdminSidebarProps {
   activeSection: string;
@@ -13,13 +29,19 @@ interface AdminSidebarProps {
   setDrawerOpen: (open: boolean) => void;
 }
 
-const AdminSidebar: React.FC<AdminSidebarProps> = ({ 
-  activeSection, 
+const AdminSidebar: React.FC<AdminSidebarProps> = ({
+  activeSection,
   setActiveSection,
   isMobile,
   drawerOpen,
-  setDrawerOpen
+  setDrawerOpen,
 }) => {
+  const theme = useTheme();
+  const isMobileScreen = useMediaQuery(theme.breakpoints.down('sm'));
+  const [isCollapsed, setIsCollapsed] = useState(false);
+
+  const drawerWidth = isCollapsed ? 72 : 240;
+
   const menuItems = [
     { text: 'Dashboard', icon: <DashboardIcon />, section: 'dashboard' },
     { text: 'Existing Regions', icon: <MapIcon />, section: 'regions' },
@@ -27,37 +49,127 @@ const AdminSidebar: React.FC<AdminSidebarProps> = ({
     { text: 'Users by Role', icon: <PeopleIcon />, section: 'users' },
   ];
 
+  const toggleDrawer = () => {
+    if (isMobileScreen) {
+      setDrawerOpen(!drawerOpen);
+    } else {
+      setIsCollapsed(!isCollapsed);
+    }
+  };
+
   return (
     <Drawer
-      variant={isMobile ? 'temporary' : 'permanent'}
+      variant={isMobileScreen ? 'temporary' : 'permanent'}
       open={drawerOpen}
       onClose={() => setDrawerOpen(false)}
       sx={{
-        width: 240,
+        width: drawerWidth,
         flexShrink: 0,
         '& .MuiDrawer-paper': {
-          width: 240,
+          width: drawerWidth,
           boxSizing: 'border-box',
-          marginTop: isMobile ? 0 : '64px', // Adjust based on your header height
+          mt: isMobileScreen ? 0 : '64px',
+          transition: theme.transitions.create('width', {
+            easing: theme.transitions.easing.sharp,
+            duration: theme.transitions.duration.enteringScreen,
+          }),
+          backgroundColor: theme.palette.background.default,
+          borderRight: `1px solid ${theme.palette.divider}`,
         },
       }}
     >
-      <List>
-        {menuItems.map((item) => (
-          <ListItem
-            button
-            key={item.section}
-            selected={activeSection === item.section}
-            onClick={() => {
-              setActiveSection(item.section);
-              if (isMobile) setDrawerOpen(false);
+      {/* Logo Section */}
+      <Box
+        sx={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: isCollapsed ? 'center' : 'space-between',
+          px: 2,
+          py: 2,
+          borderBottom: `1px solid ${theme.palette.divider}`,
+        }}
+      >
+        {!isCollapsed && (
+          <Box
+            component="img"
+            src="/ATB-logo.png"
+            alt="ATB Logo"
+            sx={{ width: 100, height: 'auto' }}
+          />
+        )}
+
+        <Tooltip title={isCollapsed ? 'Expand' : 'Collapse'}>
+          <IconButton
+            size="small"
+            onClick={toggleDrawer}
+            sx={{
+              ml: isCollapsed ? 0 : 'auto',
+              transition: theme.transitions.create(['transform'], {
+                duration: theme.transitions.duration.shortest,
+              }),
+              transform: isCollapsed ? 'rotate(180deg)' : 'rotate(0deg)',
             }}
           >
-            <ListItemIcon>{item.icon}</ListItemIcon>
-            <ListItemText primary={item.text} />
-          </ListItem>
+            {isCollapsed ? <MenuOpenIcon /> : <MenuIcon />}
+          </IconButton>
+        </Tooltip>
+      </Box>
+
+      {/* Menu Items */}
+      <List
+        sx={{
+          mt: 1,
+          px: 0.5,
+          '& .MuiListItemButton-root': {
+            borderRadius: 2,
+          },
+        }}
+      >
+        {menuItems.map((item) => (
+          <Tooltip
+            key={item.section}
+            title={isCollapsed ? item.text : ''}
+            placement="right"
+            arrow
+          >
+            <ListItem
+              button
+              selected={activeSection === item.section}
+              onClick={() => {
+                setActiveSection(item.section);
+                if (isMobileScreen) setDrawerOpen(false);
+              }}
+              sx={{
+                px: isCollapsed ? 1 : 2.5,
+                py: 1.5,
+                my: 0.5,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: isCollapsed ? 'center' : 'flex-start',
+                bgcolor: activeSection === item.section ? theme.palette.action.selected : 'transparent',
+                '&:hover': {
+                  backgroundColor: theme.palette.action.hover,
+                },
+              }}
+            >
+              <ListItemIcon
+                sx={{
+                  color: activeSection === item.section ? theme.palette.primary.main : 'inherit',
+                  minWidth: isCollapsed ? 0 : 40,
+                  mr: isCollapsed ? 0 : 2,
+                  justifyContent: 'center',
+                }}
+              >
+                {item.icon}
+              </ListItemIcon>
+              {!isCollapsed && <ListItemText primary={item.text} />}
+            </ListItem>
+          </Tooltip>
         ))}
       </List>
+
+      <Box flexGrow={1} />
+      {!isMobileScreen && <Divider sx={{ mt: 2, mb: 1 }} />}
     </Drawer>
   );
 };

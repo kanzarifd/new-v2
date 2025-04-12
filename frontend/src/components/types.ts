@@ -1,16 +1,28 @@
-export interface ChartData {
-  name: string;
-  value: number;
-}
-
-export interface Reclamation {
+export interface Region {
   id: number;
-  created_at: string;
-  type: string;
-  status: 'pending' | 'in_progress' | 'resolved' | 'closed';
-  priority: 'high' | 'medium' | 'low';
+  name: string;
   date_debut: string;
   date_fin: string;
-  region_id: number;
-  user_id: number;
+}
+
+export interface RegionFormData {
+  name: string;
+  date_debut: string;
+  date_fin: string;
+}
+
+export interface User {
+  id: number;
+  username: string;
+  role: string;
+  regionId?: number;
+}
+
+export interface Reclam {
+  id: number;
+  title: string;
+  description: string;
+  status: string;
+  priority: string;
+  regionId: number;
 }

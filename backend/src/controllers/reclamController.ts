@@ -1,6 +1,37 @@
 import { Request, Response } from 'express';
-import { prisma } from '../config/database';
-import { Priority } from '../types/reclam';
+import { PrismaClient } from '@prisma/client';
+import { AuthenticatedRequest } from '../middleware/auth';
+
+const prisma = new PrismaClient();
+
+interface ReclamWithUserAndRegion {
+  id: number;
+  user: {
+    id: number;
+    name: string;
+    email: string;
+  };
+  region: {
+    id: number;
+    name: string;
+    date_debut: Date;
+    date_fin: Date;
+  };
+}
+
+const isReclamWithUserAndRegion = (obj: any): obj is ReclamWithUserAndRegion => {
+  return obj && typeof obj === 'object' &&
+    typeof obj.id === 'number' &&
+    obj.user && typeof obj.user === 'object' &&
+    typeof obj.user.id === 'number' &&
+    typeof obj.user.name === 'string' &&
+    typeof obj.user.email === 'string' &&
+    obj.region && typeof obj.region === 'object' &&
+    typeof obj.region.id === 'number' &&
+    typeof obj.region.name === 'string' &&
+    obj.region.date_debut instanceof Date &&
+    obj.region.date_fin instanceof Date;
+};
 
 export const addReclam = async (req: Request, res: Response) => {
   try {
@@ -63,14 +94,26 @@ export const getAllReclams = async (_: Request, res: Response) => {
 
 export const getReclamById = async (req: Request, res: Response) => {
   try {
-    const id = Number(req.params.id);
-    const reclam = await prisma.reclam.findUnique({ where: { id } });
+    const reclam = await prisma.reclam.findUnique({
+      where: { id: parseInt(req.params.id) },
+      include: {
+        user: true,
+        region: true,
+      },
+    });
+
     if (!reclam) {
-      return res.status(404).json({ message: 'Reclamation not found' });
+      return res.status(404).json({ error: 'Reclamation not found' });
     }
+
+    if (!isReclamWithUserAndRegion(reclam)) {
+      return res.status(500).json({ error: 'Invalid reclamation data' });
+    }
+
     return res.json(reclam);
-  } catch (error: any) {
-    return res.status(500).json({ error: error.message });
+  } catch (error) {
+    console.error('Error fetching reclamation:', error);
+    return res.status(500).json({ error: 'Internal server error' });
   }
 };
 

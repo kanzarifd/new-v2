@@ -29,7 +29,8 @@ import {
   InputLabel,
   Select,
   MenuItem,
-  SelectChangeEvent} from '@mui/material';
+  SelectChangeEvent
+} from '@mui/material';
 import {
   AdapterDateFns
 } from '@mui/x-date-pickers/AdapterDateFns';
@@ -38,14 +39,16 @@ import { format } from 'date-fns';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
 import LogoutIcon from '@mui/icons-material/Logout';
+import MenuIcon from '@mui/icons-material/Menu';
 import axios from 'axios';
 import { useSnackbar } from '../components/SnackbarProvider';
 import AdminDashboardStats from '../components/AdminDashboardStats';
+import AdminSidebar from './AdminSidebar'; 
 
 interface RegionFormData {
   name: string;
   date_debut: string;
-  date_fin: string;
+  date_fin: string
 }
 
 interface Region extends RegionFormData {
@@ -77,34 +80,29 @@ const AdminDashboard = () => {
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
   const { enqueueSnackbar } = useSnackbar();
 
+  // State for sidebar and navigation
+  const [activeSection, setActiveSection] = useState('dashboard');
+  const [drawerOpen, setDrawerOpen] = useState(!isMobile);
+
   // Existing state
   const [open, setOpen] = useState(false);
   const [formData, setFormData] = useState<RegionFormData>({ name: '', date_debut: '', date_fin: '' });
   const [editingId, setEditingId] = useState<number | null>(null);
   const [regions, setRegions] = useState<Region[]>([]);
   const [error, setError] = useState<string | null>(null);
-
-  // New state for reclamations
   const [selectedRegionId, setSelectedRegionId] = useState<number | null>(null);
   const [reclams, setReclams] = useState<Reclam[]>([]);
   const [reclamError, setReclamError] = useState<string | null>(null);
   const [loadingReclams, setLoadingReclams] = useState(false);
-
-  // New state for priority filter
   const [priorityFilter, setPriorityFilter] = useState<string>('');
-
-  // New state for priority reclams
   const [priorityReclams, setPriorityReclams] = useState<Reclam[]>([]);
   const [selectedPriority, setSelectedPriority] = useState<string>('high');
   const [loadingPriorityReclams, setLoadingPriorityReclams] = useState(false);
   const [priorityError, setPriorityError] = useState<string | null>(null);
-
-  // New state for users by role
   const [usersByRole, setUsersByRole] = useState<any[]>([]);
   const [selectedUserRole, setSelectedUserRole] = useState<string>('user');
   const [loadingUsers, setLoadingUsers] = useState(false);
   const [usersError, setUsersError] = useState<string | null>(null);
-
   const [reclamations, setReclamations] = useState([]);
 
   const fetchRegions = async () => {
@@ -124,14 +122,6 @@ const AdminDashboard = () => {
   const handleLogout = () => {
     localStorage.clear();
     navigate('/login', { replace: true });
-  };
-
-  const handleBack = () => {
-    if (location.state?.from) {
-      navigate(location.state.from, { replace: true });
-    } else {
-      navigate('/login', { replace: true });
-    }
   };
 
   const handleOpen = (region?: Region) => {
@@ -196,22 +186,12 @@ const AdminDashboard = () => {
 
       await fetchRegions();
       handleClose();
-      alert(editingId ? 'Region updated successfully!' : 'Region added successfully!');
+      enqueueSnackbar(editingId ? 'Region updated successfully!' : 'Region added successfully!', { variant: 'success' });
     } catch (error: any) {
       setError(error.message);
     }
   };
 
-  // New function to handle priority change
-  const handlePriorityChange = (event: SelectChangeEvent) => {
-    setPriorityFilter(event.target.value as string);
-    // If a region is selected, refresh reclams with new filter
-    if (selectedRegionId) {
-      fetchReclams(selectedRegionId);
-    }
-  };
-
-  // New function to fetch reclams with priority filter
   const fetchReclams = async (regionId: number) => {
     setLoadingReclams(true);
     setReclamError(null);
@@ -219,7 +199,7 @@ const AdminDashboard = () => {
     try {
       const response = await axios.get(`http://localhost:8000/api/reclams/region/${regionId}`, {
         params: {
-          priority: priorityFilter || undefined,  // Send the selected priority as a query parameter
+          priority: priorityFilter || undefined,
         }
       });
       setReclams(response.data);
@@ -237,9 +217,9 @@ const AdminDashboard = () => {
   const handleRegionSelect = (regionId: number) => {
     setSelectedRegionId(regionId);
     fetchReclams(regionId);
+    setActiveSection('regions');
   };
 
-  // New function to fetch all reclamations
   const fetchAllReclams = async () => {
     setLoadingPriorityReclams(true);
     setPriorityError(null);
@@ -271,12 +251,6 @@ const AdminDashboard = () => {
     fetchReclamations();
   }, []);
 
-  // Filter reclamations based on selected priority
-  const filteredReclams = priorityReclams.filter(reclam => 
-    reclam.priority === selectedPriority
-  );
-
-  // Fetch users by role
   const fetchUsersByRole = async (role: string) => {
     setLoadingUsers(true);
     setUsersError(null);
@@ -295,10 +269,11 @@ const AdminDashboard = () => {
     }
   };
 
-  // Fetch users when role changes
   useEffect(() => {
-    fetchUsersByRole(selectedUserRole);
-  }, [selectedUserRole]);
+    if (activeSection === 'users') {
+      fetchUsersByRole(selectedUserRole);
+    }
+  }, [selectedUserRole, activeSection]);
 
   const handleDeleteUser = async (userId: number) => {
     if (!window.confirm('Are you sure you want to delete this user? This action cannot be undone.')) {
@@ -315,351 +290,350 @@ const AdminDashboard = () => {
     }
   };
 
-  const handleEditUser = async (userId: number) => {
-    try {
-      const response = await axios.get(`http://localhost:8000/api/users/${userId}`);
-      // setUserToEdit(response.data);
-      // setOpen(true);
-    } catch (error: any) {
-      console.error('Error fetching user:', error);
-      enqueueSnackbar('Error fetching user', { variant: 'error' });
-    }
-  };
+  const filteredReclams = priorityReclams.filter(reclam => 
+    reclam.priority === selectedPriority
+  );
 
-  const handleUpdateUser = async (updatedUser: any) => {
-    try {
-      await axios.put(`http://localhost:8000/api/users/${updatedUser.id}`, updatedUser);
-      fetchUsersByRole(selectedUserRole);
-      // setOpen(false);
-      // setUserToEdit(null);
-      enqueueSnackbar('User updated successfully', { variant: 'success' });
-    } catch (error: any) {
-      console.error('Error updating user:', error);
-      enqueueSnackbar('Error updating user', { variant: 'error' });
-    }
-  };
-
-  const showNotification = (message: string, variant: 'success' | 'error') => {
-    enqueueSnackbar(message, { variant });
-  };
+  function handleEditUser(id: any): void {
+    throw new Error('Function not implemented.');
+  }
 
   return (
-    <Box sx={{ p: 3 }}>
-      {/* Dashboard Header */}
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 4 }}>
-        <Typography variant="h4" component="h1">
-          Admin Dashboard
-        </Typography>
-        <Button
-          variant="contained"
-          color="primary"
-          startIcon={<LogoutIcon />}
-          onClick={handleLogout}
-        >
-          Logout
-        </Button>
-      </Box>
+    <Box sx={{ display: 'flex', minHeight: '100vh' }}>
+      <AdminSidebar
+        activeSection={activeSection}
+        setActiveSection={setActiveSection}
+        isMobile={isMobile}
+        drawerOpen={drawerOpen}
+        setDrawerOpen={setDrawerOpen}
+      />
 
-      {/* Statistics and Charts */}
-      <AdminDashboardStats reclamations={reclamations} />
-
-      {/* Regions list */}
-      <Paper sx={{ p: 2, mb: 3 }}>
-        <Typography variant="h6">Existing Regions</Typography>
-        <List>
-          {regions.map((region) => (
-            <React.Fragment key={region.id}>
-              <ListItem
-                sx={{
-                  '&:hover': {
-                    bgcolor: 'action.hover',
-                    cursor: 'pointer'
-                  }
-                }}
-              >
-                <ListItemText
-                  primary={
-                    <Box
-                      component="span"
-                      sx={{
-                        display: 'inline-block',
-                        cursor: 'pointer',
-                        '&:hover': {
-                          color: 'primary.main'
-                        }
-                      }}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleRegionSelect(region.id);
-                      }}
-                    >
-                      {region.name}
-                    </Box>
-                  }
-                  secondary={`From ${region.date_debut} to ${region.date_fin}`}
-                />
-                <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
-                  <IconButton onClick={(e) => {
-                    e.stopPropagation();
-                    handleOpen(region);
-                  }}>
-                    <EditIcon />
-                  </IconButton>
-                </Box>
-              </ListItem>
-              <Divider />
-            </React.Fragment>
-          ))}
-        </List>
-      </Paper>
-
-      {/* Reclamations section */}
-      {selectedRegionId && (
-        <Paper sx={{ p: 2, mb: 3 }}>
-          <Typography variant="h6" gutterBottom>
-            Reclamations for {regions.find(r => r.id === selectedRegionId)?.name}
+      <Box component="main" sx={{ flexGrow: 1, p: 3 }}>
+        {/* Dashboard Header */}
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 4 }}>
+          {isMobile && (
+            <IconButton onClick={() => setDrawerOpen(!drawerOpen)}>
+              <MenuIcon />
+            </IconButton>
+          )}
+          <Typography variant="h4" component="h1">
+            Admin Dashboard
           </Typography>
-          
-
-          {reclamError && (
-            <Alert severity="error" sx={{ mb: 2 }}>
-              {reclamError}
-            </Alert>
-          )}
-
-          {loadingReclams && (
-            <Box sx={{ display: 'flex', justifyContent: 'center', py: 3 }}>
-              <CircularProgress />
-            </Box>
-          )}
-
-          {!loadingReclams && reclams.length > 0 && (
-            <TableContainer>
-              <Table>
-                <TableHead>
-                  <TableRow>
-                    <TableCell>Title</TableCell>
-                    <TableCell>Description</TableCell>
-                    <TableCell>Status</TableCell>
-                    <TableCell>Priority</TableCell>
-                    <TableCell>Start Date</TableCell>
-                    <TableCell>End Date</TableCell>
-                    <TableCell>User</TableCell>
-                  </TableRow>
-                </TableHead>
-                <TableBody>
-                  {reclams.map(reclam => (
-                    <TableRow key={reclam.id}>
-                      <TableCell>{reclam.title}</TableCell>
-                      <TableCell>{reclam.description}</TableCell>
-                      <TableCell>{reclam.status}</TableCell>
-                      <TableCell>{reclam.priority}</TableCell>
-                      <TableCell>{new Date(reclam.date_debut).toLocaleDateString()}</TableCell>
-                      <TableCell>{reclam.date_fin ? new Date(reclam.date_fin).toLocaleDateString() : '-'}</TableCell>
-                      <TableCell>{reclam.user?.name}</TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </TableContainer>
-          )}
-        </Paper>
-      )}
-
-      {/* Priority Reclamations section */}
-      <Paper sx={{ p: 2, mb: 3 }}>
-        <Typography variant="h6" gutterBottom>
-          Reclamations by Priority
-        </Typography>
-
-        <Box sx={{ display: 'flex', gap: 2, mb: 2, alignItems: 'center' }}>
-          <FormControl sx={{ minWidth: 120 }}>
-            <InputLabel>Priority</InputLabel>
-            <Select
-              value={selectedPriority}
-              label="Priority"
-              onChange={(e) => setSelectedPriority(e.target.value as string)}
-            >
-              <MenuItem value="high">High Priority</MenuItem>
-              <MenuItem value="medium">Medium Priority</MenuItem>
-              <MenuItem value="low">Low Priority</MenuItem>
-            </Select>
-          </FormControl>
-
-          {priorityError && (
-            <Alert severity="error" sx={{ flex: 1 }}>
-              {priorityError}
-            </Alert>
-          )}
+          <Button
+            variant="contained"
+            color="primary"
+            startIcon={<LogoutIcon />}
+            onClick={handleLogout}
+          >
+            Logout
+          </Button>
         </Box>
 
-        {loadingPriorityReclams && (
-          <Box sx={{ display: 'flex', justifyContent: 'center', py: 3 }}>
-            <CircularProgress />
-          </Box>
+        {/* Statistics and Charts */}
+        {activeSection === 'dashboard' && (
+          <AdminDashboardStats reclamations={reclamations} />
         )}
 
-        {!loadingPriorityReclams && (
-          <TableContainer>
-            <Table>
-              <TableHead>
-                <TableRow>
-                  <TableCell>Title</TableCell>
-                  <TableCell>Description</TableCell>
-                
-                  <TableCell>Status</TableCell>
-                  <TableCell>Start Date</TableCell>
-                  <TableCell>End Date</TableCell>
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {filteredReclams.map(reclam => (
-                  <TableRow key={reclam.id}>
-                    <TableCell>{reclam.title}</TableCell>
-                    <TableCell>{reclam.description}</TableCell>
-                  
-                    <TableCell>{reclam.status}</TableCell>
-                    <TableCell>{new Date(reclam.date_debut).toLocaleDateString()}</TableCell>
-                    <TableCell>{reclam.date_fin ? new Date(reclam.date_fin).toLocaleDateString() : '-'}</TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </TableContainer>
-        )}
-      </Paper>
-
-      {/* Users by Role section */}
-      <Paper sx={{ p: 2, mb: 3 }}>
-        <Typography variant="h6" gutterBottom>
-          Users by Role
-        </Typography>
-
-
-        <Box sx={{ display: 'flex', gap: 2, mb: 2, alignItems: 'center' }}>
-          <FormControl sx={{ minWidth: 120 }}>
-            <InputLabel>Role</InputLabel>
-            <Select
-              value={selectedUserRole}
-              label="Role"
-              onChange={(e) => setSelectedUserRole(e.target.value as string)}
-            >
-              <MenuItem value="user">Users</MenuItem>
-              <MenuItem value="admin">Admins</MenuItem>
-              <MenuItem value="agent">Agents</MenuItem>
-            </Select>
-          </FormControl>
-
-          {usersError && (
-            <Alert severity="error" sx={{ flex: 1 }}>
-              {usersError}
-            </Alert>
-          )}
-        </Box>
-
-        {loadingUsers && (
-          <Box sx={{ display: 'flex', justifyContent: 'center', py: 3 }}>
-            <CircularProgress />
-          </Box>
-        )}
-
-        {!loadingUsers && (
-          <TableContainer>
-            <Table>
-              <TableHead>
-                <TableRow>
-                  <TableCell>Name</TableCell>
-                  <TableCell>Email</TableCell>
-                  <TableCell>Full Name</TableCell>
-                  <TableCell>Phone Number</TableCell>
-                  <TableCell>Bank Account</TableCell>
-                  <TableCell>Balance</TableCell>
-                  <TableCell>Created At</TableCell>
-                  <TableCell>Updated At</TableCell>
-                  <TableCell />
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {usersByRole.map((user) => (
-                  <TableRow key={user.id}>
-                    <TableCell>{user.name}</TableCell>
-                    <TableCell>{user.email}</TableCell>
-                    <TableCell>{user.full_name}</TableCell>
-                    <TableCell>{user.number}</TableCell>
-                    <TableCell>{user.bank_account_number}</TableCell>
-                    <TableCell>{user.bank_account_balance}</TableCell>
-                    <TableCell>{new Date(user.createdAt).toLocaleDateString()}</TableCell>
-                    <TableCell>{new Date(user.updatedAt).toLocaleDateString()}</TableCell>
-                    <TableCell>
-                      <IconButton
-                        color="primary"
-                        onClick={() => handleEditUser(user.id)}
-                        size="small"
-                      >
+        {/* Regions list */}
+        {activeSection === 'regions' && (
+          <Paper sx={{ p: 2, mb: 3 }}>
+            <Typography variant="h6">Existing Regions</Typography>
+            <List>
+              {regions.map((region) => (
+                <React.Fragment key={region.id}>
+                  <ListItem
+                    sx={{
+                      '&:hover': {
+                        bgcolor: 'action.hover',
+                        cursor: 'pointer'
+                      }
+                    }}
+                  >
+                    <ListItemText
+                      primary={
+                        <Box
+                          component="span"
+                          sx={{
+                            display: 'inline-block',
+                            cursor: 'pointer',
+                            '&:hover': {
+                              color: 'primary.main'
+                            }
+                          }}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleRegionSelect(region.id);
+                          }}
+                        >
+                          {region.name}
+                        </Box>
+                      }
+                      secondary={`From ${region.date_debut} to ${region.date_fin}`}
+                    />
+                    <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
+                      <IconButton onClick={(e) => {
+                        e.stopPropagation();
+                        handleOpen(region);
+                      }}>
                         <EditIcon />
                       </IconButton>
-                      <IconButton
-                        color="error"
-                        onClick={() => handleDeleteUser(user.id)}
-                        size="small"
-                      >
-                        <DeleteIcon />
-                      </IconButton>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </TableContainer>
-        )}
-      </Paper>
+                    </Box>
+                  </ListItem>
+                  <Divider />
+                </React.Fragment>
+              ))}
+            </List>
 
-      {/* Add/Edit Region Dialog */}
-      <Dialog open={open} onClose={handleClose} maxWidth="sm" fullWidth>
-        <DialogTitle>{editingId ? 'Edit Region' : 'Add New Region'}</DialogTitle>
-        {error && (
-          <DialogContent sx={{ color: 'error.main', mb: 2 }}>
-            {error}
-          </DialogContent>
+            {/* Reclamations for selected region */}
+            {selectedRegionId && (
+              <>
+                <Typography variant="h6" gutterBottom sx={{ mt: 3 }}>
+                  Reclamations for {regions.find(r => r.id === selectedRegionId)?.name}
+                </Typography>
+                
+                {reclamError && (
+                  <Alert severity="error" sx={{ mb: 2 }}>
+                    {reclamError}
+                  </Alert>
+                )}
+
+                {loadingReclams && (
+                  <Box sx={{ display: 'flex', justifyContent: 'center', py: 3 }}>
+                    <CircularProgress />
+                  </Box>
+                )}
+
+                {!loadingReclams && reclams.length > 0 && (
+                  <TableContainer>
+                    <Table>
+                      <TableHead>
+                        <TableRow>
+                          <TableCell>Title</TableCell>
+                          <TableCell>Description</TableCell>
+                          <TableCell>Status</TableCell>
+                          <TableCell>Priority</TableCell>
+                          <TableCell>Start Date</TableCell>
+                          <TableCell>End Date</TableCell>
+                          <TableCell>User</TableCell>
+                        </TableRow>
+                      </TableHead>
+                      <TableBody>
+                        {reclams.map(reclam => (
+                          <TableRow key={reclam.id}>
+                            <TableCell>{reclam.title}</TableCell>
+                            <TableCell>{reclam.description}</TableCell>
+                            <TableCell>{reclam.status}</TableCell>
+                            <TableCell>{reclam.priority}</TableCell>
+                            <TableCell>{new Date(reclam.date_debut).toLocaleDateString()}</TableCell>
+                            <TableCell>{reclam.date_fin ? new Date(reclam.date_fin).toLocaleDateString() : '-'}</TableCell>
+                            <TableCell>{reclam.user?.name}</TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </TableContainer>
+                )}
+              </>
+            )}
+          </Paper>
         )}
-        <form onSubmit={handleSubmit}>
-          <DialogContent>
-            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-              <TextField
-                required
-                label="Region Name"
-                name="name"
-                value={formData.name}
-                onChange={handleChange}
-              />
-              <LocalizationProvider dateAdapter={AdapterDateFns}>
-                <MuiDatePicker
-                  label="Start Date"
-                  value={formData.date_debut ? new Date(formData.date_debut) : null}
-                  onChange={(date) => {
-                    const formatted = date ? format(date, 'yyyy-MM-dd') : '';
-                    setFormData((prev) => ({ ...prev, date_debut: formatted }));
-                  }}
-                  renderInput={(params) => <TextField {...params} required />}
-                />
-                <MuiDatePicker
-                  label="End Date"
-                  value={formData.date_fin ? new Date(formData.date_fin) : null}
-                  onChange={(date) => {
-                    const formatted = date ? format(date, 'yyyy-MM-dd') : '';
-                    setFormData((prev) => ({ ...prev, date_fin: formatted }));
-                  }}
-                  renderInput={(params) => <TextField {...params} required />}
-                />
-              </LocalizationProvider>
+
+        {/* Reclamations by Priority section */}
+        {activeSection === 'priority' && (
+          <Paper sx={{ p: 2, mb: 3 }}>
+            <Typography variant="h6" gutterBottom>
+              Reclamations by Priority
+            </Typography>
+
+            <Box sx={{ display: 'flex', gap: 2, mb: 2, alignItems: 'center' }}>
+              <FormControl sx={{ minWidth: 120 }}>
+                <InputLabel>Priority</InputLabel>
+                <Select
+                  value={selectedPriority}
+                  label="Priority"
+                  onChange={(e) => setSelectedPriority(e.target.value as string)}
+                >
+                  <MenuItem value="high">High Priority</MenuItem>
+                  <MenuItem value="medium">Medium Priority</MenuItem>
+                  <MenuItem value="low">Low Priority</MenuItem>
+                </Select>
+              </FormControl>
+
+              {priorityError && (
+                <Alert severity="error" sx={{ flex: 1 }}>
+                  {priorityError}
+                </Alert>
+              )}
             </Box>
-          </DialogContent>
-          <DialogActions>
-            <Button onClick={handleClose}>Cancel</Button>
-            <Button type="submit" variant="contained">{editingId ? 'Update' : 'Add'}</Button>
-          </DialogActions>
-        </form>
-      </Dialog>
+
+            {loadingPriorityReclams && (
+              <Box sx={{ display: 'flex', justifyContent: 'center', py: 3 }}>
+                <CircularProgress />
+              </Box>
+            )}
+
+            {!loadingPriorityReclams && (
+              <TableContainer>
+                <Table>
+                  <TableHead>
+                    <TableRow>
+                      <TableCell>Title</TableCell>
+                      <TableCell>Description</TableCell>
+                      <TableCell>Status</TableCell>
+                      <TableCell>Start Date</TableCell>
+                      <TableCell>End Date</TableCell>
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    {filteredReclams.map(reclam => (
+                      <TableRow key={reclam.id}>
+                        <TableCell>{reclam.title}</TableCell>
+                        <TableCell>{reclam.description}</TableCell>
+                        <TableCell>{reclam.status}</TableCell>
+                        <TableCell>{new Date(reclam.date_debut).toLocaleDateString()}</TableCell>
+                        <TableCell>{reclam.date_fin ? new Date(reclam.date_fin).toLocaleDateString() : '-'}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </TableContainer>
+            )}
+          </Paper>
+        )}
+
+        {/* Users by Role section */}
+        {activeSection === 'users' && (
+          <Paper sx={{ p: 2, mb: 3 }}>
+            <Typography variant="h6" gutterBottom>
+              Users by Role
+            </Typography>
+
+            <Box sx={{ display: 'flex', gap: 2, mb: 2, alignItems: 'center' }}>
+              <FormControl sx={{ minWidth: 120 }}>
+                <InputLabel>Role</InputLabel>
+                <Select
+                  value={selectedUserRole}
+                  label="Role"
+                  onChange={(e) => setSelectedUserRole(e.target.value as string)}
+                >
+                  <MenuItem value="user">Users</MenuItem>
+                  <MenuItem value="admin">Admins</MenuItem>
+                  <MenuItem value="agent">Agents</MenuItem>
+                </Select>
+              </FormControl>
+
+              {usersError && (
+                <Alert severity="error" sx={{ flex: 1 }}>
+                  {usersError}
+                </Alert>
+              )}
+            </Box>
+
+            {loadingUsers && (
+              <Box sx={{ display: 'flex', justifyContent: 'center', py: 3 }}>
+                <CircularProgress />
+              </Box>
+            )}
+
+            {!loadingUsers && (
+              <TableContainer>
+                <Table>
+                  <TableHead>
+                    <TableRow>
+                      <TableCell>Name</TableCell>
+                      <TableCell>Email</TableCell>
+                      <TableCell>Full Name</TableCell>
+                      <TableCell>Phone Number</TableCell>
+                      <TableCell>Bank Account</TableCell>
+                      <TableCell>Balance</TableCell>
+                      <TableCell>Created At</TableCell>
+                      <TableCell>Updated At</TableCell>
+                      <TableCell />
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    {usersByRole.map((user) => (
+                      <TableRow key={user.id}>
+                        <TableCell>{user.name}</TableCell>
+                        <TableCell>{user.email}</TableCell>
+                        <TableCell>{user.full_name}</TableCell>
+                        <TableCell>{user.number}</TableCell>
+                        <TableCell>{user.bank_account_number}</TableCell>
+                        <TableCell>{user.bank_account_balance}</TableCell>
+                        <TableCell>{new Date(user.createdAt).toLocaleDateString()}</TableCell>
+                        <TableCell>{new Date(user.updatedAt).toLocaleDateString()}</TableCell>
+                        <TableCell>
+                          <IconButton
+                            color="primary"
+                            onClick={() => handleEditUser(user.id)}
+                            size="small"
+                          >
+                            <EditIcon />
+                          </IconButton>
+                          <IconButton
+                            color="error"
+                            onClick={() => handleDeleteUser(user.id)}
+                            size="small"
+                          >
+                            <DeleteIcon />
+                          </IconButton>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </TableContainer>
+            )}
+          </Paper>
+        )}
+
+        {/* Add/Edit Region Dialog */}
+        <Dialog open={open} onClose={handleClose} maxWidth="sm" fullWidth>
+          <DialogTitle>{editingId ? 'Edit Region' : 'Add New Region'}</DialogTitle>
+          {error && (
+            <DialogContent sx={{ color: 'error.main', mb: 2 }}>
+              {error}
+            </DialogContent>
+          )}
+          <form onSubmit={handleSubmit}>
+            <DialogContent>
+              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                <TextField
+                  required
+                  label="Region Name"
+                  name="name"
+                  value={formData.name}
+                  onChange={handleChange}
+                />
+                <LocalizationProvider dateAdapter={AdapterDateFns}>
+                  <MuiDatePicker
+                    label="Start Date"
+                    value={formData.date_debut ? new Date(formData.date_debut) : null}
+                    onChange={(date) => {
+                      const formatted = date ? format(date, 'yyyy-MM-dd') : '';
+                      setFormData((prev) => ({ ...prev, date_debut: formatted }));
+                    }}
+                    renderInput={(params) => <TextField {...params} required />}
+                  />
+                  <MuiDatePicker
+                    label="End Date"
+                    value={formData.date_fin ? new Date(formData.date_fin) : null}
+                    onChange={(date) => {
+                      const formatted = date ? format(date, 'yyyy-MM-dd') : '';
+                      setFormData((prev) => ({ ...prev, date_fin: formatted }));
+                    }}
+                    renderInput={(params) => <TextField {...params} required />}
+                  />
+                </LocalizationProvider>
+              </Box>
+            </DialogContent>
+            <DialogActions>
+              <Button onClick={handleClose}>Cancel</Button>
+              <Button type="submit" variant="contained">{editingId ? 'Update' : 'Add'}</Button>
+            </DialogActions>
+          </form>
+        </Dialog>
+      </Box>
     </Box>
   );
 };

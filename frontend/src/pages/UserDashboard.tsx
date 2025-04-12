@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useAuth } from '../context/AuthContext';
+import { useAuth } from '../components/context/AuthContext';
 import axios from 'axios';
 import {
   Typography,
@@ -258,7 +258,7 @@ const UserDashboard = () => {
         startIcon={<AddIcon />}
         sx={{ mb: 2 }}
       >
-        Add Reclamation
+        Adresser  une Reclamation
       </Button>
 
       <Paper sx={{ p: 2, mb: 3 }}>

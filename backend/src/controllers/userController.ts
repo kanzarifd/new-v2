@@ -282,6 +282,9 @@ export const login = async (req: Request, res: Response) => {
         token
       });
     } catch (jwtError) {
+      if (jwtError instanceof jwt.JsonWebTokenError) {
+        return res.status(400).json({ error: 'Invalid token' });
+      }
       console.error('JWT token generation error:', {
         message: jwtError.message,
         stack: jwtError.stack
@@ -368,44 +371,55 @@ export const requestPasswordReset = async (req: Request, res: Response) => {
 
 export const resetPassword = async (req: Request, res: Response) => {
   try {
-    const { token, password } = req.body;
+    const { token, newPassword } = req.body;
 
-    // Find user with matching reset token
-    const user = await prisma.user.findFirst({
-      where: {
-        resetToken: token,
-        resetTokenExpiry: {
-          gt: new Date()
-        }
-      }
-    });
-
-    if (!user) {
-      return res.status(400).json({ message: 'Invalid or expired reset token' });
+    if (!token || !newPassword) {
+      return res.status(400).json({ error: 'Token and new password are required' });
     }
 
-    // Validate password length
-    if (password.length < 6) {
-      return res.status(400).json({ message: 'Password must be at least 6 characters' });
-    }
+    try {
+      const decoded = jwt.verify(token, JWT_SECRET) as { 
+        id: number;
+        resetToken: string;
+        resetTokenExpiry: number;
+      };
 
-    // Hash new password
-    const hashedPassword = await bcrypt.hash(password, 10);
+      const user = await prisma.user.findUnique({
+        where: { id: decoded.id },
+      });
 
-    // Update user with new password and clear reset token
-    await prisma.user.update({
-      where: { id: user.id },
-      data: {
-        password: hashedPassword,
-        resetToken: null,
-        resetTokenExpiry: null
+      if (!user || !user.resetToken || !user.resetTokenExpiry) {
+        return res.status(400).json({ error: 'Invalid or expired token' });
       }
-    });
 
-    return res.status(200).json({ message: 'Password reset successful' });
-  } catch (err: any) {
-    console.error('Password reset error:', err);
-    return res.status(500).json({ message: 'Internal server error' });
+      if (user.resetToken !== decoded.resetToken) {
+        return res.status(400).json({ error: 'Invalid token' });
+      }
+
+      if (user.resetTokenExpiry < Date.now()) {
+        return res.status(400).json({ error: 'Token has expired' });
+      }
+
+      const hashedPassword = await bcrypt.hash(newPassword, 10);
+      await prisma.user.update({
+        where: { id: user.id },
+        data: {
+          password: hashedPassword,
+          resetToken: null,
+          resetTokenExpiry: null,
+        },
+      });
+
+      return res.status(200).json({ message: 'Password reset successfully' });
+    } catch (error) {
+      if (error instanceof jwt.JsonWebTokenError) {
+        return res.status(400).json({ error: 'Invalid token' });
+      }
+      return res.status(500).json({ error: 'Internal server error' });
+    }
+  } catch (error) {
+    console.error('Error resetting password:', error);
+    return res.status(500).json({ error: 'Internal server error' });
   }
 };
 

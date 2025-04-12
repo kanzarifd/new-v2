@@ -5,6 +5,7 @@ import {
   Typography,
   Tooltip,
   Alert,
+  AlertTitle,
   CircularProgress,
   TableContainer,
   Table,
@@ -45,7 +46,8 @@ import {
   Delete as DeleteIcon,
   Logout as LogoutIcon,
   Menu as MenuIcon,
-  CalendarToday as CalendarTodayIcon
+  CalendarToday as CalendarTodayIcon,
+  InfoOutlined as InfoOutlinedIcon
 } from '@mui/icons-material';
 import {
   AdapterDateFns
@@ -652,70 +654,119 @@ const AdminDashboard = () => {
               )}
             </Paper>
           )}
+{/* Reclamations by Priority Section */}
+{activeSection === 'priority' && (
+  <Paper sx={{ p: 3, mb: 4, borderRadius: 2, boxShadow: 3 }}>
+    <Typography variant="h5" component="h2" sx={{ mb: 3, fontWeight: 600 }}>
+      Priority-Based Reclamation Management
+    </Typography>
 
-          {/* Reclamations by Priority section */}
-          {activeSection === 'priority' && (
-            <Paper sx={{ p: 2, mb: 3 }}>
-              <Typography variant="h6" gutterBottom>
-                Reclamations by Priority
-              </Typography>
+    <Box sx={{ mb: 4 }}>
+      <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap', alignItems: 'center' }}>
+        <FormControl sx={{ minWidth: 200 }} size="small">
+          <InputLabel id="priority-select-label">Priority Level</InputLabel>
+          <Select
+            labelId="priority-select-label"
+            value={selectedPriority}
+            label="Priority Level"
+            onChange={(e) => setSelectedPriority(e.target.value as string)}
+            variant="outlined"
+          >
+            <MenuItem value="high">High Priority</MenuItem>
+            <MenuItem value="medium">Medium Priority</MenuItem>
+            <MenuItem value="low">Low Priority</MenuItem>
+          </Select>
+        </FormControl>
 
-              <Box sx={{ display: 'flex', gap: 2, mb: 2, alignItems: 'center' }}>
-                <FormControl sx={{ minWidth: 120 }}>
-                  <InputLabel>Priority</InputLabel>
-                  <Select
-                    value={selectedPriority}
-                    label="Priority"
-                    onChange={(e) => setSelectedPriority(e.target.value as string)}
-                  >
-                    <MenuItem value="high">High Priority</MenuItem>
-                    <MenuItem value="medium">Medium Priority</MenuItem>
-                    <MenuItem value="low">Low Priority</MenuItem>
-                  </Select>
-                </FormControl>
+        {priorityError && (
+          <Alert severity="error" sx={{ flex: '1 1 300px' }}>
+            <AlertTitle>Data Retrieval Error</AlertTitle>
+            {priorityError}
+          </Alert>
+        )}
+      </Box>
+    </Box>
 
-                {priorityError && (
-                  <Alert severity="error" sx={{ flex: 1 }}>
-                    {priorityError}
-                  </Alert>
-                )}
-              </Box>
-
-              {loadingPriorityReclams && (
-                <Box sx={{ display: 'flex', justifyContent: 'center', py: 3 }}>
-                  <CircularProgress />
-                </Box>
-              )}
-
-              {!loadingPriorityReclams && (
-                <TableContainer>
-                  <Table>
-                    <TableHead>
-                      <TableRow>
-                        <TableCell>Title</TableCell>
-                        <TableCell>Description</TableCell>
-                        <TableCell>Status</TableCell>
-                        <TableCell>Start Date</TableCell>
-                        <TableCell>End Date</TableCell>
-                      </TableRow>
-                    </TableHead>
-                    <TableBody>
-                      {filteredReclams.map(reclam => (
-                        <TableRow key={reclam.id}>
-                          <TableCell>{reclam.title}</TableCell>
-                          <TableCell>{reclam.description}</TableCell>
-                          <TableCell>{reclam.status}</TableCell>
-                          <TableCell>{new Date(reclam.date_debut).toLocaleDateString()}</TableCell>
-                          <TableCell>{reclam.date_fin ? new Date(reclam.date_fin).toLocaleDateString() : '-'}</TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </TableContainer>
-              )}
-            </Paper>
-          )}
-
+    {loadingPriorityReclams ? (
+      <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', py: 4 }}>
+        <CircularProgress size={40} thickness={4} />
+        <Typography variant="body2" sx={{ mt: 2, color: 'text.secondary' }}>
+          Loading reclamation data...
+        </Typography>
+      </Box>
+    ) : (
+      <TableContainer sx={{ maxHeight: 600, overflow: 'auto' }}>
+        <Table stickyHeader aria-label="priority reclamations table">
+          <TableHead>
+            <TableRow>
+              <TableCell sx={{ fontWeight: 600 }}>Reclamation Title</TableCell>
+              <TableCell sx={{ fontWeight: 600 }}>Detailed Description</TableCell>
+              <TableCell sx={{ fontWeight: 600 }}>Resolution Status</TableCell>
+              <TableCell sx={{ fontWeight: 600 }}>Initiation Date</TableCell>
+              <TableCell sx={{ fontWeight: 600 }}>Completion Date</TableCell>
+            </TableRow>
+          </TableHead>
+          <TableBody>
+            {filteredReclams.length > 0 ? (
+              filteredReclams.map((reclam) => (
+                <TableRow key={reclam.id} hover>
+                  <TableCell>{reclam.title}</TableCell>
+                  <TableCell sx={{ maxWidth: 300 }}>{reclam.description}</TableCell>
+                  <TableCell>
+                    <Chip 
+                      label={reclam.status} 
+                      color={
+                        reclam.status.toLowerCase() === 'resolved' ? 'success' : 
+                        reclam.status.toLowerCase() === 'pending' ? 'warning' : 'error'
+                      }
+                      size="small"
+                    />
+                  </TableCell>
+                  <TableCell>
+                    {new Date(reclam.date_debut).toLocaleDateString('en-US', {
+                      year: 'numeric',
+                      month: 'short',
+                      day: 'numeric'
+                    })}
+                  </TableCell>
+                  <TableCell>
+                    {reclam.date_fin ? 
+                      new Date(reclam.date_fin).toLocaleDateString('en-US', {
+                        year: 'numeric',
+                        month: 'short',
+                        day: 'numeric'
+                      }) : 
+                      <Typography variant="body2" color="text.secondary">
+                        Ongoing
+                      </Typography>
+                    }
+                  </TableCell>
+                </TableRow>
+              ))
+            ) : (
+              <TableRow>
+                <TableCell colSpan={5} sx={{ py: 4 }}>
+                  <Box sx={{ 
+                    display: 'flex', 
+                    flexDirection: 'column', 
+                    alignItems: 'center',
+                    color: 'text.secondary'
+                  }}>
+                    <InfoOutlinedIcon sx={{ fontSize: 40, mb: 1 }} />
+                    <Typography variant="body1">
+                      No reclamations found for selected priority level
+                    </Typography>
+                  </Box>
+                </TableCell>
+              </TableRow>
+            )}
+          </TableBody>
+        </Table>
+      </TableContainer>
+    )}
+  </Paper>
+)}
+        
           {/* Users by Role section */}
           {activeSection === 'users' && (
             <Paper sx={{ p: 2, mb: 3 }}>

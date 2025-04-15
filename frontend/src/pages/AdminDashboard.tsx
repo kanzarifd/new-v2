@@ -47,7 +47,8 @@ import {
   Logout as LogoutIcon,
   Menu as MenuIcon,
   CalendarToday as CalendarTodayIcon,
-  InfoOutlined as InfoOutlinedIcon
+  InfoOutlined as InfoOutlinedIcon,
+  People as PeopleIcon
 } from '@mui/icons-material';
 import {
   AdapterDateFns
@@ -59,6 +60,8 @@ import { useSnackbar } from '../components/SnackbarProvider';
 import AdminDashboardStats from '../components/AdminDashboardStats';
 import AdminSidebar from './AdminSidebar';
 import AdminHeader from './AdminHeader';
+
+import { styled } from '@mui/material/styles';
 
 interface RegionFormData {
   name: string;
@@ -87,6 +90,64 @@ interface Reclam {
     name: string;
   };
 }
+
+const StyledCard = styled(Card)(({ theme }) => ({
+  transition: 'all 0.3s ease',
+  '&:hover': {
+    boxShadow: theme.shadows[8],
+    transform: 'translateY(-2px)',
+  },
+}));
+
+const StyledTableContainer = styled(TableContainer)(({ theme }) => ({
+  '& .MuiTable-root': {
+    minWidth: 700,
+  },
+}));
+
+const StyledTableRow = styled(TableRow)(({ theme }) => ({
+  '&:hover': {
+    backgroundColor: 'rgba(0, 0, 0, 0.04)',
+  },
+  '&:nth-of-type(even)': {
+    backgroundColor: theme.palette.action.hover,
+  },
+}));
+
+const StyledTableCell = styled(TableCell)(({ theme }) => ({
+  padding: theme.spacing(2),
+  borderBottom: '1px solid rgba(0, 0, 0, 0.08)',
+  '&:first-child': {
+    fontWeight: 500,
+    color: theme.palette.text.primary,
+  },
+}));
+
+const StyledIconButton = styled(IconButton)(({ theme }) => ({
+  '&:hover': {
+    backgroundColor: 'rgba(0, 0, 0, 0.08)',
+  },
+}));
+
+const StyledAvatar = styled(Avatar)(({ theme }) => ({
+  backgroundColor: theme.palette.grey[100],
+  color: theme.palette.text.primary,
+}));
+
+const StyledChip = styled(Chip)(({ theme }) => ({
+  '&.MuiChip-root': {
+    margin: theme.spacing(0.5),
+    backgroundColor: theme.palette.grey[100],
+    color: theme.palette.text.primary,
+  },
+}));
+
+const StyledSkeleton = styled(Skeleton)(({ theme }) => ({
+  backgroundColor: theme.palette.grey[100],
+  '&::after': {
+    backgroundColor: theme.palette.grey[300],
+  },
+}));
 
 const AdminDashboard = () => {
   const navigate = useNavigate();
@@ -508,7 +569,7 @@ const AdminDashboard = () => {
                     <Box sx={{ width: '100%' }}>
                       {/* Table Header */}
                       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-                        <Typography variant="h6" sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                        <Typography variant="h6" sx={{ mb: 2, display: 'flex', alignItems: 'center', gap: 1 }}>
                           <AssignmentIcon sx={{ color: 'primary.main' }} />
                           Reclamations
                         </Typography>
@@ -583,7 +644,7 @@ const AdminDashboard = () => {
                                 return 0;
                               })
                               .map((reclam) => (
-                                <TableRow
+                                <StyledTableRow
                                   key={reclam.id}
                                   sx={{
                                     '&:hover': {
@@ -591,38 +652,38 @@ const AdminDashboard = () => {
                                     },
                                   }}
                                 >
-                                  <TableCell>{reclam.title}</TableCell>
-                                  <TableCell>
+                                  <StyledTableCell>{reclam.title}</StyledTableCell>
+                                  <StyledTableCell>
                                     <Chip 
                                       label={reclam.status} 
                                       size="small"
                                       color={statusColorMap[reclam.status]}
                                     />
-                                  </TableCell>
-                                  <TableCell>
+                                  </StyledTableCell>
+                                  <StyledTableCell>
                                     <Chip 
                                       label={reclam.priority} 
                                       size="small"
                                       color={priorityColorMap[reclam.priority]}
                                     />
-                                  </TableCell>
-                                  <TableCell>
+                                  </StyledTableCell>
+                                  <StyledTableCell>
                                     {format(new Date(reclam.date_debut), 'dd MMM yyyy')}
-                                  </TableCell>
-                                  <TableCell>
+                                  </StyledTableCell>
+                                  <StyledTableCell>
                                     <Box display="flex" alignItems="center" gap={1}>
                                       <Avatar sx={{ width: 24, height: 24, fontSize: 14 }}>
                                         {reclam.user?.name?.charAt(0)}
                                       </Avatar>
                                       {reclam.user?.name}
                                     </Box>
-                                  </TableCell>
-                                  <TableCell>
+                                  </StyledTableCell>
+                                  <StyledTableCell>
                                     <IconButton size="small" onClick={() => handleOpen(reclam)}>
                                       <EditIcon />
                                     </IconButton>
-                                  </TableCell>
-                                </TableRow>
+                                  </StyledTableCell>
+                                </StyledTableRow>
                               ))}
                           </TableBody>
                         </Table>
@@ -769,88 +830,247 @@ const AdminDashboard = () => {
         
           {/* Users by Role section */}
           {activeSection === 'users' && (
-            <Paper sx={{ p: 2, mb: 3 }}>
-              <Typography variant="h6" gutterBottom>
-                Users by Role
-              </Typography>
-
-              <Box sx={{ display: 'flex', gap: 2, mb: 2, alignItems: 'center' }}>
-                <FormControl sx={{ minWidth: 120 }}>
-                  <InputLabel>Role</InputLabel>
-                  <Select
-                    value={selectedUserRole}
-                    label="Role"
-                    onChange={(e) => setSelectedUserRole(e.target.value as string)}
-                  >
-                    <MenuItem value="user">Users</MenuItem>
-                    <MenuItem value="admin">Admins</MenuItem>
-                    <MenuItem value="agent">Agents</MenuItem>
-                  </Select>
-                </FormControl>
-
-                {usersError && (
-                  <Alert severity="error" sx={{ flex: 1 }}>
-                    {usersError}
-                  </Alert>
-                )}
+            <StyledCard sx={{ p: 3, mb: 4 }}>
+              <Box sx={{ mb: 3 }}>
+                <Typography
+                  variant="h5"
+                  component="h2"
+                  sx={{
+                    fontWeight: 600,
+                    color: 'primary.main',
+                    mb: 1,
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 1,
+                  }}
+                >
+                  <PeopleIcon sx={{ fontSize: 24 }} />
+                  User Role Management
+                </Typography>
+                <Typography
+                  variant="subtitle1"
+                  color="text.secondary"
+                  sx={{
+                    opacity: 0.8,
+                  }}
+                >
+                  Manage users and their roles in the system
+                </Typography>
               </Box>
 
-              {loadingUsers && (
-                <Box sx={{ display: 'flex', justifyContent: 'center', py: 3 }}>
-                  <CircularProgress />
-                </Box>
-              )}
+              <Box sx={{ mb: 4 }}>
+                <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap', alignItems: 'center' }}>
+                  <FormControl sx={{ minWidth: 200 }} size="small">
+                    <InputLabel id="role-select-label">Filter by Role</InputLabel>
+                    <Select
+                      labelId="role-select-label"
+                      value={selectedUserRole}
+                      label="Filter by Role"
+                      onChange={(e) => setSelectedUserRole(e.target.value as string)}
+                      variant="outlined"
+                      sx={{
+                        '& .MuiOutlinedInput-root': {
+                          '& fieldset': {
+                            borderColor: 'rgba(0, 0, 0, 0.23)',
+                          },
+                          '&:hover fieldset': {
+                            borderColor: 'rgba(0, 0, 0, 0.38)',
+                          },
+                          '&.Mui-focused fieldset': {
+                            borderColor: 'primary.main',
+                          },
+                        },
+                      }}
+                    >
+                      <MenuItem value="user">Standard Users</MenuItem>
+                      <MenuItem value="admin">Administrators</MenuItem>
+                      <MenuItem value="agent">Support Agents</MenuItem>
+                    </Select>
+                  </FormControl>
 
-              {!loadingUsers && (
-                <TableContainer>
+                  {usersError && (
+                    <Alert severity="error" sx={{
+                      flex: '1 1 300px',
+                      borderRadius: 1,
+                      '& .MuiAlert-message': {
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 1,
+                      },
+                    }}>
+                      <AlertTitle>Data Retrieval Error</AlertTitle>
+                      {usersError}
+                    </Alert>
+                  )}
+                </Box>
+              </Box>
+
+              {loadingUsers ? (
+                <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', py: 4 }}>
+                  <CircularProgress size={24} thickness={4} sx={{ color: 'primary.main' }} />
+                  <Typography variant="body2" sx={{ mt: 2, color: 'text.secondary' }}>
+                    Loading user data...
+                  </Typography>
+                </Box>
+              ) : (
+                <StyledTableContainer>
                   <Table>
                     <TableHead>
-                      <TableRow>
-                        <TableCell>Name</TableCell>
-                        <TableCell>Email</TableCell>
-                        <TableCell>Full Name</TableCell>
-                        <TableCell>Phone Number</TableCell>
-                        <TableCell>Bank Account</TableCell>
-                        <TableCell>Balance</TableCell>
-                        <TableCell>Created At</TableCell>
-                        <TableCell>Updated At</TableCell>
-                        <TableCell />
+                      <TableRow sx={{ backgroundColor: 'background.paper' }}>
+                        <StyledTableCell sx={{ 
+                          fontWeight: 700,
+                          color: 'text.primary',
+                          borderBottom: '2px solid',
+                          borderColor: 'divider',
+                        }}>
+                          Name
+                        </StyledTableCell>
+                        <StyledTableCell sx={{ 
+                          fontWeight: 700,
+                          color: 'text.primary',
+                          borderBottom: '2px solid',
+                          borderColor: 'divider',
+                        }}>
+                          Email
+                        </StyledTableCell>
+                        <StyledTableCell sx={{ 
+                          fontWeight: 700,
+                          color: 'text.primary',
+                          borderBottom: '2px solid',
+                          borderColor: 'divider',
+                        }}>
+                          Full Name
+                        </StyledTableCell>
+                        <StyledTableCell sx={{ 
+                          fontWeight: 700,
+                          color: 'text.primary',
+                          borderBottom: '2px solid',
+                          borderColor: 'divider',
+                        }}>
+                          Phone Number
+                        </StyledTableCell>
+                        <StyledTableCell sx={{ 
+                          fontWeight: 700,
+                          color: 'text.primary',
+                          borderBottom: '2px solid',
+                          borderColor: 'divider',
+                        }}>
+                          Bank Account
+                        </StyledTableCell>
+                        <StyledTableCell sx={{ 
+                          fontWeight: 700,
+                          color: 'text.primary',
+                          borderBottom: '2px solid',
+                          borderColor: 'divider',
+                        }}>
+                          Balance
+                        </StyledTableCell>
+                        <StyledTableCell sx={{ 
+                          fontWeight: 700,
+                          color: 'text.primary',
+                          borderBottom: '2px solid',
+                          borderColor: 'divider',
+                        }}>
+                          Created At
+                        </StyledTableCell>
+                        <StyledTableCell sx={{ 
+                          fontWeight: 700,
+                          color: 'text.primary',
+                          borderBottom: '2px solid',
+                          borderColor: 'divider',
+                        }}>
+                          Updated At
+                        </StyledTableCell>
+                        <StyledTableCell sx={{ 
+                          fontWeight: 700,
+                          color: 'text.primary',
+                          borderBottom: '2px solid',
+                          borderColor: 'divider',
+                        }} align="center">
+                          Actions
+                        </StyledTableCell>
                       </TableRow>
                     </TableHead>
                     <TableBody>
-                      {usersByRole.map((user) => (
-                        <TableRow key={user.id}>
-                          <TableCell>{user.name}</TableCell>
-                          <TableCell>{user.email}</TableCell>
-                          <TableCell>{user.full_name}</TableCell>
-                          <TableCell>{user.number}</TableCell>
-                          <TableCell>{user.bank_account_number}</TableCell>
-                          <TableCell>{user.bank_account_balance}</TableCell>
-                          <TableCell>{new Date(user.createdAt).toLocaleDateString()}</TableCell>
-                          <TableCell>{new Date(user.updatedAt).toLocaleDateString()}</TableCell>
-                          <TableCell>
-                            <IconButton
-                              color="primary"
-                              onClick={() => handleEditUser(user.id)}
-                              size="small"
-                            >
-                              <EditIcon />
-                            </IconButton>
-                            <IconButton
-                              color="error"
-                              onClick={() => handleDeleteUser(user.id)}
-                              size="small"
-                            >
-                              <DeleteIcon />
-                            </IconButton>
+                      {usersByRole.length > 0 ? (
+                        usersByRole.map((user) => (
+                          <StyledTableRow key={user.id}>
+                            <StyledTableCell>{user.name}</StyledTableCell>
+                            <StyledTableCell>{user.email}</StyledTableCell>
+                            <StyledTableCell>{user.full_name}</StyledTableCell>
+                            <StyledTableCell>{user.number}</StyledTableCell>
+                            <StyledTableCell>{user.bank_account_number}</StyledTableCell>
+                            <StyledTableCell>
+                              <StyledChip
+                                label={`$${user.bank_account_balance?.toLocaleString() || '0.00'}`}
+                                color="primary"
+                                size="small"
+                                sx={{
+                                  backgroundColor: 'primary.light',
+                                  color: 'primary.contrastText',
+                                  '& .MuiChip-label': {
+                                    fontWeight: 500,
+                                  },
+                                }}
+                              />
+                            </StyledTableCell>
+                            <StyledTableCell>
+                              {format(new Date(user.createdAt), 'dd MMM yyyy HH:mm')}
+                            </StyledTableCell>
+                            <StyledTableCell>
+                              {format(new Date(user.updatedAt), 'dd MMM yyyy HH:mm')}
+                            </StyledTableCell>
+                            <StyledTableCell align="center">
+                              <StyledIconButton
+                                size="small"
+                                onClick={() => handleEditUser(user.id)}
+                                color="primary"
+                                sx={{
+                                  '&:hover': {
+                                    backgroundColor: 'primary.light',
+                                  }
+                                }}
+                              >
+                                <EditIcon sx={{ fontSize: 18 }} />
+                              </StyledIconButton>
+                              <StyledIconButton
+                                size="small"
+                                onClick={() => handleDeleteUser(user.id)}
+                                color="error"
+                                sx={{
+                                  '&:hover': {
+                                    backgroundColor: 'error.light',
+                                  }
+                                }}
+                              >
+                                <DeleteIcon sx={{ fontSize: 18 }} />
+                              </StyledIconButton>
+                            </StyledTableCell>
+                          </StyledTableRow>
+                        ))
+                      ) : (
+                        <TableRow>
+                          <TableCell colSpan={9} sx={{ py: 4 }}>
+                            <Box sx={{ 
+                              display: 'flex', 
+                              flexDirection: 'column', 
+                              alignItems: 'center',
+                              color: 'text.secondary',
+                              gap: 1,
+                            }}>
+                              <InfoOutlinedIcon sx={{ fontSize: 40, color: 'text.secondary' }} />
+                              <Typography variant="body1" sx={{ color: 'text.secondary' }}>
+                                No users found for selected role
+                              </Typography>
+                            </Box>
                           </TableCell>
                         </TableRow>
-                      ))}
+                      )}
                     </TableBody>
                   </Table>
-                </TableContainer>
+                </StyledTableContainer>
               )}
-            </Paper>
+            </StyledCard>
           )}
         </Box>
 

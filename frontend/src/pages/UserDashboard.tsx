@@ -1,5 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../components/context/AuthContext';
+import ChatGPTBox from '../components/ChatGPTBox';
+import FakeChatbot from '../components/FakeChatbot';
+import ChatbotPanel from '../components/ChatbotPanel'; // Adjust path
+
+
 import axios from 'axios';
 import {
   Typography,
@@ -32,6 +37,8 @@ import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import { format } from 'date-fns';
+import AdminHeader from './AdminHeader';
+import UserHeader from './UserHeader';
 
 interface Reclam {
   id: number;
@@ -62,6 +69,8 @@ interface FormValues {
 }
 
 const UserDashboard = () => {
+  const [chatOpen, setChatOpen] = useState(false);
+
   const { user, token, logout } = useAuth();
   const [reclams, setReclams] = useState<Reclam[]>([]);
   const [regions, setRegions] = useState<Region[]>([]);
@@ -229,8 +238,31 @@ const UserDashboard = () => {
     }
   };
 
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    const handleResize = () => {
+      setIsMobile(window.innerWidth < 600);
+    };
+    handleResize();
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  const toggleDrawer = () => {
+    setIsMobile(!isMobile);
+  };
+
+  const handleLogout = () => {
+    logout();
+  };
+
+  const openChat = () => {
+    setChatOpen(true);
+  };
+
   return (
-    <Box sx={{ p: 3 }}>
+    <><Box sx={{ p: 3 }}>
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
         <Typography variant="h4">User Dashboard</Typography>
         <Button
@@ -239,10 +271,18 @@ const UserDashboard = () => {
           startIcon={<Logout />}
           onClick={() => {
             logout();
-          }}
+          } }
         >
           Logout
         </Button>
+      </Box>
+        
+      <Box component="main" sx={{ flexGrow: 1, p: 3 }}>
+        <UserHeader
+          toggleDrawer={toggleDrawer}
+          onLogout={handleLogout}
+          onOpenChat={openChat} isMobile={false}      />
+
       </Box>
 
       {error && (
@@ -296,8 +336,7 @@ const UserDashboard = () => {
                         py: 0.5,
                         borderRadius: 1,
                         bgcolor: reclam.status === 'pending' ? 'success.light' : 'error.light',
-                      }}
-                    />
+                      }} />
                   </TableCell>
                   <TableCell>{reclam.priority}</TableCell>
                   <TableCell>{reclam.date_debut}</TableCell>
@@ -339,8 +378,7 @@ const UserDashboard = () => {
                 value={formData.title}
                 onChange={(e) => setFormData({ ...formData, title: e.target.value })}
                 required
-                error={!formData.title}
-              />
+                error={!formData.title} />
 
               <TextField
                 fullWidth
@@ -349,8 +387,7 @@ const UserDashboard = () => {
                 label="Description"
                 value={formData.description}
                 onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                required
-              />
+                required />
 
               <FormControl fullWidth>
                 <InputLabel>Status</InputLabel>
@@ -404,11 +441,10 @@ const UserDashboard = () => {
                     if (date instanceof Date) {
                       setFormData((prev) => ({ ...prev, date_debut: format(date, 'yyyy-MM-dd') }));
                     }
-                  }}
+                  } }
                   renderInput={(params) => (
                     <TextField {...params} fullWidth required />
-                  )}
-                />
+                  )} />
               </LocalizationProvider>
 
               <LocalizationProvider dateAdapter={AdapterDateFns}>
@@ -419,11 +455,10 @@ const UserDashboard = () => {
                     if (date instanceof Date) {
                       setFormData((prev) => ({ ...prev, date_fin: format(date, 'yyyy-MM-dd') }));
                     }
-                  }}
+                  } }
                   renderInput={(params) => (
                     <TextField {...params} fullWidth required />
-                  )}
-                />
+                  )} />
               </LocalizationProvider>
             </Box>
           </DialogContent>
@@ -446,6 +481,12 @@ const UserDashboard = () => {
         </Alert>
       </Snackbar>
     </Box>
+   
+
+      <ChatbotPanel isOpen={chatOpen} onClose={() => setChatOpen(false)} />
+    
+    
+    </>
   );
 };
 

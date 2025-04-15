@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback  } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../components/context/AuthContext';
 import {
@@ -10,7 +10,6 @@ import {
   Paper,
   CircularProgress,
   Alert,
-  IconButton,
   TextField,
   Dialog,
   DialogTitle,
@@ -24,7 +23,7 @@ import {
   AppBar,
   Toolbar,
   Tooltip,
-  Avatar
+  Avatar 
 } from '@mui/material';
 import {
   Logout as LogoutIcon,
@@ -265,22 +264,18 @@ const AgentDashboard = () => {
   return (
     <DndProvider backend={HTML5Backend}>
       <Box sx={{ p: 3 }}>
-        {/* Header */}
-        <AppBar position="static" sx={{ mb: 3 }}>
-          <Toolbar>
-            <Typography variant="h6" component="div" sx={{ flexGrow: 1 }}>
-              Agent Dashboard
-            </Typography>
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-              <Typography variant="subtitle2" color="text.secondary">
-                {user?.name}
-              </Typography>
-              <IconButton onClick={handleLogout} color="inherit">
-                <LogoutIcon />
-              </IconButton>
-            </Box>
-          </Toolbar>
-        </AppBar>
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
+          <Typography variant="h4">Agent Dashboard</Typography>
+          <Button
+            variant="outlined"
+            color="error"
+            startIcon={<LogoutIcon />}
+            onClick={handleLogout}
+            sx={{ ml: 1 }}
+          >
+            Logout
+          </Button>
+        </Box>
 
         {/* Statistics */}
         <Grid container spacing={2} sx={{ mb: 3 }}>

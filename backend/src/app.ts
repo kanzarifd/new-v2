@@ -1,10 +1,11 @@
-import express from 'express';
+import express, { Application } from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import { errorHandler } from './middleware/errorHandler';
 
 // Import routes
 import { router as userRoutes } from './routes/userRoutes';
+import searchRoutes from './routes/searchRoutes';
 import { router as reclamRoutes } from './routes/reclamRoutes';
 import { router as regionRoutes } from './routes/regionRoutes';
 
@@ -19,6 +20,8 @@ app.use(express.json());
 
 // Routes
 app.use('/api/users', userRoutes);
+// Mount search before dynamic routes to avoid shadowing
+app.use('/api/reclams/search', searchRoutes);
 app.use('/api/reclams', reclamRoutes);
 app.use('/api/regions', regionRoutes);
 

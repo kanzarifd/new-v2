@@ -406,6 +406,14 @@ const AdminDashboard = () => {
     throw new Error('Function not implemented.');
   }
 
+  // Scroll to reclam from search hash
+  React.useEffect(() => {
+    if (location.hash.startsWith('#reclam-')) {
+      const el = document.getElementById(location.hash.slice(1));
+      if (el) el.scrollIntoView({ behavior: 'smooth' });
+    }
+  }, [location.hash]);
+
   return (
     <Box sx={{ display: 'flex', minHeight: '100vh' }}>
       <AdminSidebar
@@ -644,8 +652,7 @@ const AdminDashboard = () => {
                                 return 0;
                               })
                               .map((reclam) => (
-                                <StyledTableRow
-                                  key={reclam.id}
+                                <StyledTableRow id={`reclam-${reclam.id}`} key={reclam.id}
                                   sx={{
                                     '&:hover': {
                                       bgcolor: 'action.hover',

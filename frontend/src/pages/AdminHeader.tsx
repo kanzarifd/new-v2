@@ -23,6 +23,7 @@ import {
   Menu as MenuIcon
 } from '@mui/icons-material';
 import { useThemeContext } from '../contexts/ThemeContext';
+import ReclamSearchBar from '../components/ReclamSearchBar';
 
 interface AdminHeaderProps {
   toggleDrawer: () => void;
@@ -90,6 +91,10 @@ const AdminHeader: React.FC<AdminHeaderProps> = ({
           </Typography>
         </Box>
 
+        {/* Search */}
+        <Box sx={{ flex: 1, mx: 3, maxWidth: 300 }}>
+          <ReclamSearchBar />
+        </Box>
         {/* Right Side */}
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
           <Tooltip title={mode === 'dark' ? 'Light mode' : 'Dark mode'}>

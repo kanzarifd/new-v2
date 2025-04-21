@@ -10,4 +10,14 @@ const api = axios.create({
   },
 });
 
+// Attach x-user-id header from localStorage to support /me endpoints
+api.interceptors.request.use((config) => {
+  const stored = localStorage.getItem('user');
+  if (stored) {
+    const { id } = JSON.parse(stored);
+    config.headers['x-user-id'] = id;
+  }
+  return config;
+});
+
 export default api;

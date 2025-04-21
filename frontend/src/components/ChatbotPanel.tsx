@@ -25,7 +25,7 @@ const ChatbotPanel: React.FC<ChatbotPanelProps> = ({ isOpen, onClose }) => {
             width: '100%',
             maxWidth: 500,
             height: '100vh',
-            background: 'linear-gradient(135deg, #4e54c8, #8f94fb)', // Gradient background
+            background: 'linear-gradient(135deg,rgb(52, 7, 7),rgb(189, 151, 151))', // Gradient background
             borderRadius: '15px 0 0 15px', // Rounded corners
             boxShadow: '-4px 0 20px rgba(0,0,0,0.2)', // Shadow effect
             zIndex: 1300,

@@ -118,7 +118,7 @@ const FakeChatbot: React.FC = () => {
     if (question.toLowerCase().includes('transaction')) {
       return {
         en: "I’m sorry to hear that! Please provide the transaction details, and I’ll help track it down. Sometimes, transactions take up to 24 hours to process.",
-        fr: "Je suis désolé d'entendre cela ! Veuillez fournir les détails de la transaction et je vous aiderai à la retrouver. Parfois, les transactions peuvent prendre jusqu'à 24 heures pour être traitées.",
+        fr: "Je suis désolé d'entendre cela ! Veuillez fournir les détails de la transaction, et je vous aiderai à la retrouver. Parfois, les transactions peuvent prendre jusqu'à 24 heures pour être traitées.",
         ar: "آسف لسماع ذلك! يرجى تقديم تفاصيل المعاملة وسأساعدك في تتبعها. أحيانًا تستغرق المعاملات حتى 24 ساعة للمعالجة.",
       }[language];
     }
@@ -268,13 +268,24 @@ const FakeChatbot: React.FC = () => {
         maxWidth: 600,
         mx: 'auto',
         borderRadius: '16px',
-        background: 'linear-gradient(135deg, #007bff, #00c6ff)',
+        background: 'linear-gradient(135deg, #fff 0%, #fff 100%)',
+        boxShadow: '0 2px 8px 0 rgba(220,20,60,0.10)',
+        border: `2px solid #e53935`,
         fontSize: '1.1rem',
       }}
     >
       <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
-        <Typography variant="h6">🤖 AI Assistant</Typography>
-        <Select value={language} onChange={(e) => setLanguage(e.target.value as Language)} size="small">
+        <Typography variant="h6" sx={{ color: '#e53935', fontWeight: 800, letterSpacing: 1 }}>🤖 AI Assistant</Typography>
+        <Select value={language} onChange={(e) => setLanguage(e.target.value as Language)} size="small"
+          sx={{
+            bgcolor: '#fff',
+            border: '1px solid #e53935',
+            color: '#e53935',
+            fontWeight: 600,
+            borderRadius: 2,
+            '& .MuiSelect-icon': { color: '#e53935' }
+          }}
+        >
           <MenuItem value="en">English</MenuItem>
           <MenuItem value="fr">Français</MenuItem>
           <MenuItem value="ar">العربية</MenuItem>
@@ -290,11 +301,17 @@ const FakeChatbot: React.FC = () => {
                 variant="contained"
                 onClick={() => handleCategoryClick(cat.key)}
                 sx={{
-                  backgroundColor: '#007bff',
-                  '&:hover': { backgroundColor: '#0056b3' },
-                  borderRadius: '25px',
                   fontSize: '1.1rem',
                   padding: '12px 24px',
+                  borderRadius: '25px',
+                  color: '#fff',
+                  background: 'linear-gradient(90deg, #e53935 0%, #e35d5b 100%)',
+                  fontWeight: 700,
+                  boxShadow: '0 2px 8px 0 rgba(220,20,60,0.10)',
+                  '&:hover': {
+                    background: 'linear-gradient(90deg, #e35d5b 0%, #e53935 100%)',
+                    color: '#fff',
+                  }
                 }}
               >
                 {cat.label[language]}
@@ -307,15 +324,18 @@ const FakeChatbot: React.FC = () => {
       <List sx={{ maxHeight: 300, overflowY: 'auto', mb: 2, padding: 1 }}>
         {messages.map((msg, index) => (
           <ListItem key={index} sx={{ paddingLeft: 0 }}>
-            <Avatar sx={{ backgroundColor: msg.role === 'user' ? '#007bff' : '#e0e0e0', width: 24, height: 24 }}>
+            <Avatar sx={{ background: msg.role === 'user' ? 'linear-gradient(90deg, #e53935 0%, #e35d5b 100%)' : '#fff', color: msg.role === 'user' ? '#fff' : '#e53935', border: '2px solid #e53935', width: 28, height: 28, fontWeight: 700 }}>
               {msg.role === 'user' ? '🧑‍💼' : '🤖'}
             </Avatar>
             <ListItemText
               primary={
                 <Box
                   sx={{
-                    backgroundColor: msg.role === 'user' ? '#007bff' : '#e0e0e0',
-                    color: msg.role === 'user' ? 'white' : 'black',
+                    background: msg.role === 'user' ? 'linear-gradient(90deg, #e53935 0%, #e35d5b 100%)' : '#fff',
+                    color: msg.role === 'user' ? '#fff' : '#222',
+                    border: msg.role === 'user' ? 'none' : '1.5px solid #e53935',
+                    boxShadow: msg.role === 'user' ? '0 2px 8px 0 rgba(220,20,60,0.10)' : '0 2px 8px 0 rgba(220,20,60,0.04)',
+                    fontWeight: msg.role === 'user' ? 600 : 500,
                     padding: '15px 25px',
                     borderRadius: '25px',
                     maxWidth: '70%',
@@ -334,7 +354,8 @@ const FakeChatbot: React.FC = () => {
               display: 'block', 
               marginTop: '6px',
               fontSize: '0.9rem',
-              fontWeight: '500'
+              fontWeight: '500',
+              color: '#e53935'
             }}>
               {getTimeStamp()}
             </Typography>
@@ -351,13 +372,19 @@ const FakeChatbot: React.FC = () => {
       <Box textAlign="center" mt={3}>
         <Button 
           onClick={clearHistory} 
-          color="inherit" 
           size="medium"
           sx={{
             fontSize: '1.1rem',
             padding: '10px 25px',
             borderRadius: '25px',
-            color: 'black',
+            color: '#fff',
+            background: 'linear-gradient(90deg, #e53935 0%, #e35d5b 100%)',
+            fontWeight: 700,
+            boxShadow: '0 2px 8px 0 rgba(220,20,60,0.10)',
+            '&:hover': {
+              background: 'linear-gradient(90deg, #e35d5b 0%, #e53935 100%)',
+              color: '#fff',
+            }
           }}
         >
           Clear Chat History

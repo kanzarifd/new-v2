@@ -7,6 +7,10 @@ interface User {
   name?: string;
   full_name?: string;
   number?: string;
+  bank_account_number?: string;
+  bank_account_balance?: number;
+  createdAt?: string;
+  password?: string;
 }
 
 interface AuthContextType {

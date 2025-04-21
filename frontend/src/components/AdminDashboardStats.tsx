@@ -1,17 +1,24 @@
 import React, { useState, useEffect } from 'react';
+import api from '../config/api';
 import { BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 import { CheckCircle as CheckIcon, Pending as PendingIcon, Close as CloseIcon } from '@mui/icons-material';
-import { Paper, Typography, Box, Grid, CircularProgress, Alert, useTheme } from '@mui/material';
-import { ChartData, Reclamation } from '../types/dashboard';
+import { Paper, Typography, Box, Grid, CircularProgress, Alert, useTheme, TableContainer, Table as MuiTable, TableHead, TableBody, TableRow, TableCell, Avatar, IconButton, TableSortLabel, Chip, ChipProps, Dialog, DialogTitle, DialogContent, DialogActions, TextField, Select, MenuItem, Button, FormControl, InputLabel } from '@mui/material';
+import { styled } from '@mui/material/styles';
+import EditIcon from '@mui/icons-material/Edit';
+import { format } from 'date-fns';
+import { ChartData } from '../types/dashboard';
+import { Reclam } from './types';
 
-const COLORS = ['#4CAF50', '#FFC107', '#F44336', '#2196F3'];
+// ATB Red Gradient Theme
+const COLORS = ['#e53935', '#ef5350', '#f44336', '#b71c1c'];
 const LOADING_HEIGHT = 300;
 
 interface AdminDashboardStatsProps {
-  reclamations: Reclamation[];
+  reclamations: Reclam[];
+  onEdit: (reclam: Reclam) => void;
 }
 
-const AdminDashboardStats = ({ reclamations }: AdminDashboardStatsProps) => {
+const AdminDashboardStats = ({ reclamations, onEdit }: AdminDashboardStatsProps) => {
   const theme = useTheme();
   const [dataBar, setDataBar] = useState<ChartData[]>([]);
   const [dataPie, setDataPie] = useState<ChartData[]>([]);
@@ -19,28 +26,35 @@ const AdminDashboardStats = ({ reclamations }: AdminDashboardStatsProps) => {
   const [error, setError] = useState<string | null>(null);
 
   // Define the fields we can sort by
-  type SortableField = 'id' | 'date_debut' | 'type' | 'priority' | 'status' | 'region_id' | 'user_id';
+  type SortableField = 'id' | 'date_debut' | 'description' | 'priority' | 'status' | 'regionId' | 'userId';
 
   // Initialize sortBy state with proper type
   const [sortBy, setSortBy] = useState<SortableField>('id');
 
+  // Initialize order state
+  const [order, setOrder] = useState<'asc' | 'desc'>('asc');
+
+  // Initialize currentPage and rowsPerPage state
+  const [currentPage, setCurrentPage] = useState(1);
+  const [rowsPerPage, setRowsPerPage] = useState(10);
+
   // Helper function to get the value for sorting
-  const getSortValue = (reclam: Reclamation, field: SortableField) => {
+  const getSortValue = (reclam: Reclam, field: SortableField) => {
     switch (field) {
       case 'id':
         return reclam.id;
       case 'date_debut':
         return reclam.date_debut;
-      case 'type':
-        return reclam.type;
+      case 'description':
+        return reclam.description;
       case 'priority':
         return reclam.priority;
       case 'status':
         return reclam.status;
-      case 'region_id':
-        return reclam.region_id;
-      case 'user_id':
-        return reclam.user_id;
+      case 'regionId':
+        return reclam.regionId ?? reclam.region?.id ?? 0;
+      case 'userId':
+        return reclam.userId ?? reclam.user?.id ?? 0;
       default:
         return reclam.id;
     }
@@ -49,12 +63,12 @@ const AdminDashboardStats = ({ reclamations }: AdminDashboardStatsProps) => {
   useEffect(() => {
     try {
       // Calculate statistics
-      const statusCounts = reclamations.reduce((acc: Record<string, number>, reclam: Reclamation) => {
+      const statusCounts = reclamations.reduce((acc: Record<string, number>, reclam: Reclam) => {
         acc[reclam.status] = (acc[reclam.status] || 0) + 1;
         return acc;
       }, {});
 
-      const priorityCounts = reclamations.reduce((acc: Record<string, number>, reclam: Reclamation) => {
+      const priorityCounts = reclamations.reduce((acc: Record<string, number>, reclam: Reclam) => {
         acc[reclam.priority] = (acc[reclam.priority] || 0) + 1;
         return acc;
       }, {});
@@ -107,133 +121,26 @@ const AdminDashboardStats = ({ reclamations }: AdminDashboardStatsProps) => {
     </Paper>
   );
 
-  const Table = ({ reclamations }: { reclamations: Reclamation[] }) => {
-    console.log('Reclamations data:', reclamations);
-    
-    // Sort reclamations based on sortBy state
-    const sortedReclamations = [...reclamations].sort((a, b) => {
-      const aValue = getSortValue(a, sortBy);
-      const bValue = getSortValue(b, sortBy);
+  // Styled rows/cells
+  const StyledTableRow = styled(TableRow)(({ theme }) => ({ '&:hover': { backgroundColor: theme.palette.action.hover } }));
+  const StyledTableCell = styled(TableCell)(({ theme }) => ({ padding: theme.spacing(1) }));
 
-      if (typeof aValue === 'string' && typeof bValue === 'string') {
-        return aValue.localeCompare(bValue);
-      }
-      if (typeof aValue === 'number' && typeof bValue === 'number') {
-        return aValue - bValue;
-      }
-      return 0;
-    });
-
-    return (
-      <Box sx={{ width: '100%', overflowX: 'auto' }}>
-        <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 800 }}>
-          <thead>
-            <tr style={{ backgroundColor: theme.palette.background.paper }}>
-              <th 
-                style={{ padding: '12px', textAlign: 'left', borderBottom: '2px solid #ddd', cursor: 'pointer' }}
-                onClick={() => setSortBy('id')}
-              >
-                ID
-              </th>
-              <th 
-                style={{ padding: '12px', textAlign: 'left', borderBottom: '2px solid #ddd', cursor: 'pointer' }}
-                onClick={() => setSortBy('date_debut')}
-              >
-                Created At
-              </th>
-              <th 
-                style={{ padding: '12px', textAlign: 'left', borderBottom: '2px solid #ddd', cursor: 'pointer' }}
-                onClick={() => setSortBy('type')}
-              >
-                Type
-              </th>
-              <th 
-                style={{ padding: '12px', textAlign: 'left', borderBottom: '2px solid #ddd', cursor: 'pointer' }}
-                onClick={() => setSortBy('priority')}
-              >
-                Priority
-              </th>
-              <th 
-                style={{ padding: '12px', textAlign: 'left', borderBottom: '2px solid #ddd', cursor: 'pointer' }}
-                onClick={() => setSortBy('status')}
-              >
-                Status
-              </th>
-              <th 
-                style={{ padding: '12px', textAlign: 'left', borderBottom: '2px solid #ddd', cursor: 'pointer' }}
-                onClick={() => setSortBy('region_id')}
-              >
-                Region ID
-              </th>
-              <th 
-                style={{ padding: '12px', textAlign: 'left', borderBottom: '2px solid #ddd', cursor: 'pointer' }}
-                onClick={() => setSortBy('user_id')}
-              >
-                User ID
-              </th>
-            </tr>
-          </thead>
-          <tbody>
-            {sortedReclamations.map((reclam, index) => {
-              console.log('Processing reclamation:', reclam);
-              return (
-                <tr
-                  key={reclam.id}
-                  style={{
-                    borderBottom: '1px solid #ddd',
-                    backgroundColor: index % 2 ? theme.palette.background.default : theme.palette.background.paper,
-                    transition: 'all 0.2s ease',
-                    cursor: 'pointer',
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.backgroundColor = theme.palette.action.hover;
-                    e.currentTarget.style.transform = 'translateY(-1px)';
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.backgroundColor = index % 2 ? theme.palette.background.default : theme.palette.background.paper;
-                    e.currentTarget.style.transform = 'none';
-                  }}
-                >
-                  <td style={{ padding: '12px' }}>{reclam.id}</td>
-                  <td style={{ padding: '12px' }}>{reclam.date_debut || 'No date'}</td>
-                  <td style={{ padding: '12px' }}>{reclam.type}</td>
-                  <td style={{ padding: '12px' }}>
-                    <Box
-                      sx={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: 1,
-                        borderRadius: 1,
-                        px: 1,
-                        py: 0.5,
-                        bgcolor: reclam.priority === 'high' ? '#FFCDD2' : reclam.priority === 'medium' ? '#FFECB3' : '#C8E6C9',
-                      }}
-                    >
-                      {reclam.priority}
-                    </Box>
-                  </td>
-                  <td style={{ padding: '12px', display: 'flex', alignItems: 'center', gap: 1 }}>
-                    {reclam.status === 'resolved' && (
-                      <CheckIcon style={{ color: '#4CAF50' }} />
-                    )}
-                    {reclam.status === 'in_progress' && (
-                      <PendingIcon style={{ color: '#FFC107' }} />
-                    )}
-                    {reclam.status === 'closed' && (
-                      <CloseIcon style={{ color: '#F44336' }} />
-                    )}
-                    {reclam.status}
-                  </td>
-                  <td style={{ padding: '12px' }}>{reclam.region_id}</td>
-                  <td style={{ padding: '12px' }}>{reclam.user_id}</td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      </Box>
-    );
+  const statusColorMap: Record<string, ChipProps['color']> = {
+    pending: 'default',
+    in_progress: 'primary',
+    resolved: 'success',
+    closed: 'error',
   };
+
+  const priorityColorMap: Record<string, ChipProps['color']> = {
+    high: 'error',
+    medium: 'warning',
+    low: 'success',
+  };
+
+  // Edit dialog state
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [editData, setEditData] = useState<Reclam | null>(null);
 
   if (loading) {
     return (
@@ -273,25 +180,67 @@ const AdminDashboardStats = ({ reclamations }: AdminDashboardStatsProps) => {
     <Box sx={{ p: 3 }}>
       <Grid container spacing={3}>
         <Grid item xs={12} sm={4}>
-          <Card
-            title="Total Reclamations"
-            value={reclamations?.length || 0}
-            icon={<CheckIcon sx={{ fontSize: 40, color: '#4CAF50' }} />}
-          />
+          <Box sx={{
+            background: 'linear-gradient(135deg, #e53935 0%, #111 100%)',
+            color: '#fff',
+            borderRadius: 3,
+            boxShadow: '0 4px 18px 0 rgba(220,20,60,0.12)',
+            border: '1.5px solid #e53935',
+            transition: 'transform 0.2s, box-shadow 0.2s',
+            p: 2,
+            display: 'flex', flexDirection: 'column', alignItems: 'center',
+            '&:hover': {
+              transform: 'scale(1.04)',
+              boxShadow: '0 8px 24px 0 rgba(220,20,60,0.20)',
+              background: 'linear-gradient(135deg, #111 0%, #e53935 100%)',
+            },
+          }}>
+            <CheckIcon sx={{ fontSize: 40, color: '#e53935', bgcolor: '#111', borderRadius: '50%', p: 1.2, boxShadow: '0 2px 8px 0 rgba(220,20,60,0.10)' }} />
+            <Typography variant="subtitle1" sx={{ mt: 1, fontWeight: 700 }}>Total Reclamations</Typography>
+            <Typography variant="h5" sx={{ fontWeight: 900 }}>{reclamations?.length || 0}</Typography>
+          </Box>
         </Grid>
         <Grid item xs={12} sm={4}>
-          <Card
-            title="In Progress"
-            value={dataBar.find((d) => d.name === 'In Progress')?.value || 0}
-            icon={<PendingIcon sx={{ fontSize: 40, color: '#FFC107' }} />}
-          />
+          <Box sx={{
+            background: 'linear-gradient(135deg, #b71c1c 0%, #e53935 100%)',
+            color: '#fff',
+            borderRadius: 3,
+            boxShadow: '0 4px 18px 0 rgba(220,20,60,0.12)',
+            border: '1.5px solid #b71c1c',
+            transition: 'transform 0.2s, box-shadow 0.2s',
+            p: 2,
+            display: 'flex', flexDirection: 'column', alignItems: 'center',
+            '&:hover': {
+              transform: 'scale(1.04)',
+              boxShadow: '0 8px 24px 0 rgba(220,20,60,0.20)',
+              background: 'linear-gradient(135deg, #e53935 0%, #b71c1c 100%)',
+            },
+          }}>
+            <PendingIcon sx={{ fontSize: 40, color: '#fff', bgcolor: '#e53935', borderRadius: '50%', p: 1.2, boxShadow: '0 2px 8px 0 rgba(220,20,60,0.10)' }} />
+            <Typography variant="subtitle1" sx={{ mt: 1, fontWeight: 700 }}>In Progress</Typography>
+            <Typography variant="h5" sx={{ fontWeight: 900 }}>{dataBar.find((d) => d.name === 'In Progress')?.value || 0}</Typography>
+          </Box>
         </Grid>
         <Grid item xs={12} sm={4}>
-          <Card
-            title="Resolved"
-            value={dataBar.find((d) => d.name === 'Resolved')?.value || 0}
-            icon={<CheckIcon sx={{ fontSize: 40, color: '#4CAF50' }} />}
-          />
+          <Box sx={{
+            background: 'linear-gradient(135deg, #111 0%, #e53935 100%)',
+            color: '#fff',
+            borderRadius: 3,
+            boxShadow: '0 4px 18px 0 rgba(220,20,60,0.12)',
+            border: '1.5px solid #111',
+            transition: 'transform 0.2s, box-shadow 0.2s',
+            p: 2,
+            display: 'flex', flexDirection: 'column', alignItems: 'center',
+            '&:hover': {
+              transform: 'scale(1.04)',
+              boxShadow: '0 8px 24px 0 rgba(220,20,60,0.20)',
+              background: 'linear-gradient(135deg, #e53935 0%, #111 100%)',
+            },
+          }}>
+            <CheckIcon sx={{ fontSize: 40, color: '#b71c1c', bgcolor: '#fff', borderRadius: '50%', p: 1.2, boxShadow: '0 2px 8px 0 rgba(220,20,60,0.10)' }} />
+            <Typography variant="subtitle1" sx={{ mt: 1, fontWeight: 700 }}>Resolved</Typography>
+            <Typography variant="h5" sx={{ fontWeight: 900 }}>{dataBar.find((d) => d.name === 'Resolved')?.value || 0}</Typography>
+          </Box>
         </Grid>
       </Grid>
 
@@ -302,11 +251,15 @@ const AdminDashboardStats = ({ reclamations }: AdminDashboardStatsProps) => {
               Reclamation Statistics
             </Typography>
             <ResponsiveContainer width="100%" height={300}>
-              <BarChart data={dataBar}>
-                <XAxis dataKey="name" />
-                <YAxis />
-                <Tooltip />
-                <Bar dataKey="value" fill="#0088FE" />
+              <BarChart data={dataBar} margin={{ top: 20, right: 30, left: 0, bottom: 5 }}>
+                <XAxis dataKey="name" stroke={theme.palette.error.main} />
+                <YAxis stroke={theme.palette.error.main} />
+                <Tooltip contentStyle={{ background: '#fff', color: '#e53935', border: '1px solid #e53935', borderRadius: 8 }} labelStyle={{ color: '#e53935', fontWeight: 700 }} />
+                <Bar dataKey="value" radius={[8, 8, 0, 0]} fill={COLORS[0]}>
+                  {dataBar.map((entry, index) => (
+                    <Cell key={`cell-bar-${index}`} fill={COLORS[index % COLORS.length]} />
+                  ))}
+                </Bar>
               </BarChart>
             </ResponsiveContainer>
           </Paper>
@@ -320,16 +273,21 @@ const AdminDashboardStats = ({ reclamations }: AdminDashboardStatsProps) => {
               <PieChart>
                 <Pie
                   data={dataPie}
-                  dataKey="value"
                   cx="50%"
                   cy="50%"
-                  outerRadius={100}
+                  labelLine={false}
+                  label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
+                  outerRadius={80}
+                  fill="#e53935"
+                  dataKey="value"
+                  stroke="#111"
+                  strokeWidth={2}
                 >
                   {dataPie.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                    <Cell key={`cell-pie-${index}`} fill={COLORS[index % COLORS.length]} />
                   ))}
                 </Pie>
-                <Tooltip />
+                <Tooltip contentStyle={{ background: '#111', color: '#e53935', border: '1px solid #e53935', borderRadius: 8 }} labelStyle={{ color: '#e53935', fontWeight: 700 }} />
               </PieChart>
             </ResponsiveContainer>
           </Paper>
@@ -340,8 +298,109 @@ const AdminDashboardStats = ({ reclamations }: AdminDashboardStatsProps) => {
         <Typography variant="h6" sx={{ mb: 2 }}>
           Recent Reclamations
         </Typography>
-        <Table reclamations={reclamations || []} />
+        <TableContainer component={Paper} sx={{ mt: 2 }}>
+          <MuiTable>
+            <TableHead>
+              <TableRow>
+                {[
+                  { id: 'title', label: 'Title' },
+                  { id: 'status', label: 'Status' },
+                  { id: 'priority', label: 'Priority' },
+                  { id: 'date_debut', label: 'Start Date' },
+                  { id: 'userId', label: 'User' },
+                  { id: 'actions', label: '' }
+                ].map((column) => (
+                  <TableCell key={column.id}>
+                    {column.id !== 'actions' ? (
+                      <TableSortLabel
+                        active={sortBy === column.id}
+                        direction={order}
+                        onClick={() => {
+                          if (sortBy === column.id) {
+                            setOrder(order === 'asc' ? 'desc' : 'asc');
+                          } else {
+                            setSortBy(column.id as any);
+                            setOrder('asc');
+                          }
+                        }}
+                      >
+                        {column.label}
+                      </TableSortLabel>
+                    ) : (
+                      column.label
+                    )}
+                  </TableCell>
+                ))}
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {reclamations
+                .slice((currentPage - 1) * rowsPerPage, currentPage * rowsPerPage)
+                .sort((a, b) => {
+                  if (sortBy === 'date_debut') {
+                    return order === 'asc'
+                      ? new Date(a.date_debut).getTime() - new Date(b.date_debut).getTime()
+                      : new Date(b.date_debut).getTime() - new Date(a.date_debut).getTime();
+                  }
+                  return 0;
+                })
+                .map((r) => (
+                  <StyledTableRow id={`reclam-${r.id}`} key={r.id} sx={{ '&:hover': { bgcolor: 'action.hover' } }}>
+                    <StyledTableCell>{r.title}</StyledTableCell>
+                    <StyledTableCell>
+                      <Chip label={r.status} size="small" color={statusColorMap[r.status]} />
+                    </StyledTableCell>
+                    <StyledTableCell>
+                      <Chip label={r.priority} size="small" color={priorityColorMap[r.priority]} />
+                    </StyledTableCell>
+                    <StyledTableCell>
+                      {format(new Date(r.date_debut), 'dd MMM yyyy')}
+                    </StyledTableCell>
+                    <StyledTableCell>
+                      <Box display="flex" alignItems="center" gap={1}>
+                        <Avatar sx={{ width: 24, height: 24, fontSize: 14 }}>
+                          {r.user?.name?.charAt(0)}
+                        </Avatar>
+                        {r.user?.name}
+                      </Box>
+                    </StyledTableCell>
+                    <StyledTableCell>
+                      <IconButton size="small" onClick={() => { setEditData(r); setEditDialogOpen(true); }}>
+                        <EditIcon fontSize="small" />
+                      </IconButton>
+                    </StyledTableCell>
+                  </StyledTableRow>
+                ))}
+            </TableBody>
+          </MuiTable>
+        </TableContainer>
       </Paper>
+
+      {/* Edit Reclamation Dialog */}
+      <Dialog open={editDialogOpen} onClose={() => setEditDialogOpen(false)} maxWidth="sm" fullWidth>
+        <DialogTitle>Edit Reclamation</DialogTitle>
+        <DialogContent dividers>
+          <TextField margin="dense" label="Title" fullWidth value={editData?.title || ''} disabled />
+          <TextField margin="dense" label="Description" fullWidth multiline rows={3} value={editData?.description || ''} disabled />
+          <FormControl margin="dense" fullWidth>
+            <InputLabel>Status</InputLabel>
+            <Select label="Status" value={editData?.status || ''} onChange={(e) => editData && setEditData({ ...editData, status: e.target.value as any })}>
+              {['pending','in_progress','resolved','closed'].map((s) => (<MenuItem key={s} value={s}>{s}</MenuItem>))}
+            </Select>
+          </FormControl>
+          <FormControl margin="dense" fullWidth>
+            <InputLabel>Priority</InputLabel>
+            <Select label="Priority" value={editData?.priority || ''} onChange={(e) => editData && setEditData({ ...editData, priority: e.target.value as any })}>
+              {['high','medium','low'].map((p) => (<MenuItem key={p} value={p}>{p}</MenuItem>))}
+            </Select>
+          </FormControl>
+          <Typography variant="body2" sx={{ mt:2 }}>User: {editData?.user?.name || 'N/A'}</Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setEditDialogOpen(false)}>Cancel</Button>
+          <Button onClick={async () => { if (editData) { await api.put(`/api/reclams/${editData.id}`, editData); setEditDialogOpen(false); window.location.reload(); } }} color="primary">Save</Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 };

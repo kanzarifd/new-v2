@@ -25,31 +25,25 @@ import {
   AccountCircle as AccountIcon,
   Logout as LogoutIcon,
   Menu as MenuIcon,
-  Home as HomeIcon,
-  Support as SupportIcon,
   Dashboard as DashboardIcon,
   Person,
   Email,
   Phone,
-  AccountBalance,
-  MonetizationOn,
 } from '@mui/icons-material';
 import { useThemeContext } from '../contexts/ThemeContext';
 import { useAuth } from '../components/context/AuthContext';
 import axios from 'axios';
 
-interface UserHeaderProps {
+interface AgentHeaderProps {
   toggleDrawer: () => void;
   onLogout: () => void;
   isMobile: boolean;
-  onOpenChat?: () => void;
 }
 
-const UserHeader: React.FC<UserHeaderProps> = ({
+const AgentHeader: React.FC<AgentHeaderProps> = ({
   toggleDrawer,
   onLogout,
   isMobile,
-  onOpenChat,
 }) => {
   const { mode, toggleColorMode } = useThemeContext();
   const { user, token } = useAuth();
@@ -73,7 +67,7 @@ const UserHeader: React.FC<UserHeaderProps> = ({
         })
         .catch(err => {
           setProfile(null);
-          setProfileError('Could not fetch user profile');
+          setProfileError('Could not fetch agent profile');
         })
         .finally(() => setLoadingProfile(false));
     }
@@ -100,8 +94,8 @@ const UserHeader: React.FC<UserHeaderProps> = ({
         100% { box-shadow: 0 0 6px 1px #e35d5b; opacity: 1; }
       }
     `;
-    if (!document.head.querySelector('#user-header-anim')) {
-      style.id = 'user-header-anim';
+    if (!document.head.querySelector('#agent-header-anim')) {
+      style.id = 'agent-header-anim';
       document.head.appendChild(style);
     }
   }, []);
@@ -143,40 +137,12 @@ const UserHeader: React.FC<UserHeaderProps> = ({
                 letterSpacing: 1,
               }}
             >
-              User Dashboard
+              Agent Dashboard
             </Typography>
           </Box>
 
           {/* Right Side */}
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-            {/* Chat Icon with Message Bubble and Animation */}
-            <Tooltip title="Support Chat">
-              <IconButton onClick={onOpenChat} sx={{
-                bgcolor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.07)' : 'rgba(220,20,60,0.10)',
-                color: theme.palette.mode === 'dark' ? theme.palette.primary.light : theme.palette.error.main,
-                borderRadius: 2,
-                mx: 0.5,
-                position: 'relative',
-                '&:hover': {
-                  bgcolor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.15)' : 'rgba(220,20,60,0.18)',
-                  transform: 'scale(1.1)',
-                  transition: 'all 0.2s',
-                }
-              }}>
-                <span style={{
-                  display: 'inline-block',
-                  animation: 'bubble-pop 1s infinite alternate',
-                }}>
-                  <svg width="26" height="26" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <path d="M21 6.5C21 4.01472 17.4183 2 12 2C6.58172 2 3 4.01472 3 6.5V14.5C3 16.9853 6.58172 19 12 19C13.2074 19 14.3527 18.9002 15.4061 18.7228C15.6682 18.6791 15.9526 18.7653 16.1369 18.9631L19.1297 22.1667C19.6735 22.783 20.75 22.4038 20.75 21.5833V18.5C20.75 18.2239 20.9739 18 21.25 18C21.6642 18 22 17.6642 22 17.25V6.5Z" stroke="currentColor" strokeWidth="1.7" strokeLinejoin="round"/>
-                    <circle cx="8.5" cy="10.5" r="1.5" fill="currentColor"/>
-                    <circle cx="12" cy="10.5" r="1.5" fill="currentColor"/>
-                    <circle cx="15.5" cy="10.5" r="1.5" fill="currentColor"/>
-                  </svg>
-                </span>
-              </IconButton>
-            </Tooltip>
-
             {/* Dark/Light Mode Icon with Sun/Moon */}
             <Tooltip title={mode === 'dark' ? 'Light Mode' : 'Dark Mode'}>
               <IconButton onClick={toggleColorMode} sx={{
@@ -228,7 +194,7 @@ const UserHeader: React.FC<UserHeaderProps> = ({
                 }}
               >
                 <Avatar sx={{ width: 26, height: 26, bgcolor: theme.palette.primary.main, fontWeight: 'bold', fontSize: 16 }}>
-                  {(profile?.name || profile?.full_name || profile?.email || '').charAt(0).toUpperCase()}
+                  {(profile?.name || profile?.username || profile?.email || '').charAt(0).toUpperCase()}
                 </Avatar>
                 <span style={{
                   position: 'absolute',
@@ -275,11 +241,11 @@ const UserHeader: React.FC<UserHeaderProps> = ({
                 mb: 1.5
               }}>
                 <Avatar sx={{ width: 44, height: 44, bgcolor: 'white', color: theme.palette.error.main, fontWeight: 'bold', fontSize: 22, border: `2px solid ${theme.palette.error.main}` }}>
-                  {(profile?.name || profile?.full_name || profile?.email || '').charAt(0).toUpperCase()}
+                  {(profile?.name || profile?.username || profile?.email || '').charAt(0).toUpperCase()}
                 </Avatar>
                 <Box>
                   <Typography variant="subtitle1" sx={{ fontWeight: 800, color: 'white', lineHeight: 1.1, letterSpacing: 0.5 }}>
-                    {profile?.name || profile?.full_name || profile?.email}
+                    {profile?.name || profile?.username || profile?.email}
                   </Typography>
                   <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.85)', fontWeight: 500 }}>
                     {profile?.email}
@@ -308,7 +274,7 @@ const UserHeader: React.FC<UserHeaderProps> = ({
                   <Typography variant="body2" sx={{ fontWeight: 600, color: theme.palette.text.primary }}>View Profile</Typography>
                 </Box>
                 <Typography variant="caption" sx={{ color: 'text.secondary', pl: 4, fontWeight: 600 }}>
-                  {profile?.name || profile?.full_name || profile?.email}
+                  {profile?.name || profile?.username || profile?.email}
                 </Typography>
               </MenuItem>
               <MenuItem onClick={onLogout} sx={{ borderRadius: 1, color: theme.palette.error.main }}>
@@ -334,10 +300,10 @@ const UserHeader: React.FC<UserHeaderProps> = ({
         <DialogContent dividers>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 3 }}>
             <Avatar sx={{ bgcolor: theme.palette.primary.main, width: 64, height: 64, fontSize: 28, fontWeight: 'bold' }}>
-              {(profile?.name || profile?.full_name || profile?.email || '').charAt(0).toUpperCase()}
+              {(profile?.name || profile?.username || profile?.email || '').charAt(0).toUpperCase()}
             </Avatar>
             <Box>
-              <Typography variant="h6" sx={{ color: theme.palette.text.primary }}>{profile?.name || profile?.full_name || profile?.email}</Typography>
+              <Typography variant="h6" sx={{ color: theme.palette.text.primary }}>{profile?.full_name || profile?.name || profile?.email}</Typography>
               <Typography
                 variant="body2"
                 sx={{
@@ -365,8 +331,6 @@ const UserHeader: React.FC<UserHeaderProps> = ({
                   ['Full Name', profile ? (profile.full_name || '-') : 'Loading...', <Person fontSize="small" />],
                   ['Phone Number', profile ? (profile.number || '-') : 'Loading...', <Phone fontSize="small" />],
                   ['Email', profile ? profile.email : 'Loading...', <Email fontSize="small" />],
-                  ['Bank Account', profile ? (profile.bank_account_number || '-') : 'Loading...', <AccountBalance fontSize="small" />],
-                  ['Balance', profile ? (profile.bank_account_balance !== undefined ? profile.bank_account_balance.toLocaleString('en-US', { style: 'currency', currency: 'USD' }) : '-') : 'Loading...', <MonetizationOn fontSize="small" />],
                 ].map(([label, value, icon]) => (
                   <Grid item xs={12} sm={6} key={String(label)}>
                     <Box display="flex" alignItems="center" gap={1}>
@@ -390,4 +354,4 @@ const UserHeader: React.FC<UserHeaderProps> = ({
   );
 };
 
-export default UserHeader;
+export default AgentHeader;

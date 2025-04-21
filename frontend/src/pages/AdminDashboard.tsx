@@ -58,6 +58,7 @@ import { format } from 'date-fns';
 import axios from 'axios';
 import { useSnackbar } from '../components/SnackbarProvider';
 import AdminDashboardStats from '../components/AdminDashboardStats';
+import { Reclam } from '../components/types';
 import AdminSidebar from './AdminSidebar';
 import AdminHeader from './AdminHeader';
 
@@ -71,24 +72,6 @@ interface RegionFormData {
 
 interface Region extends RegionFormData {
   id: number;
-}
-
-interface Reclam {
-  id: number;
-  title: string;
-  description: string;
-  status: 'completed' | 'pending' | 'active' | 'inactive';
-  priority: 'high' | 'medium' | 'low';
-  date_debut: string;
-  date_fin: string;
-  user?: {
-    id: number;
-    name: string;
-  };
-  region?: {
-    id: number;
-    name: string;
-  };
 }
 
 const StyledCard = styled(Card)(({ theme }) => ({
@@ -415,7 +398,7 @@ const AdminDashboard = () => {
   }, [location.hash]);
 
   return (
-    <Box sx={{ display: 'flex', minHeight: '100vh' }}>
+    <Box sx={{ display: 'flex', minHeight: '100vh', backgroundColor: theme.palette.background.default, color: theme.palette.text.primary }}>
       <AdminSidebar
         activeSection={activeSection}
         setActiveSection={setActiveSection}
@@ -424,7 +407,7 @@ const AdminDashboard = () => {
         setDrawerOpen={setDrawerOpen}
       />
 
-      <Box component="main" sx={{ flexGrow: 1, p: 3 }}>
+      <Box component="main" sx={{ flexGrow: 1, p: 3, backgroundColor: theme.palette.background.default, color: theme.palette.text.primary, minHeight: '100vh' }}>
         <AdminHeader
           toggleDrawer={toggleDrawer}
           onLogout={handleLogout}
@@ -435,7 +418,10 @@ const AdminDashboard = () => {
         <Box sx={{ mt: '64px' }}>
           {/* Statistics and Charts */}
           {activeSection === 'dashboard' && (
-            <AdminDashboardStats reclamations={reclamations} />
+            <AdminDashboardStats reclamations={reclamations} onEdit={(r: Reclam) => {
+              // Scroll to corresponding reclam anchor
+              window.location.hash = `#reclam-${r.id}`;
+            }} />
           )}
 
           {/* Regions list */}
@@ -447,7 +433,7 @@ const AdminDashboard = () => {
                 mb: 4,
                 borderRadius: 2,
                 bgcolor: 'background.paper',
-                boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)',
+                boxShadow: '0 4px 6px rgba(222, 8, 8, 0.1)',
               }}
             >
               <Box sx={{ mb: 3 }}>
@@ -456,15 +442,15 @@ const AdminDashboard = () => {
                   component="h2"
                   sx={{
                     fontWeight: 600,
-                    color: 'primary.main',
+                    color: '#e53935',
                     mb: 1,
                     display: 'flex',
                     alignItems: 'center',
                     gap: 1,
                   }}
                 >
-                  <LocationOnIcon sx={{ fontSize: 24 }} />
-                  Existing Regions
+                  <LocationOnIcon sx={{ fontSize: 24, color: '#e53935' }} />
+                  Existing Regions  
                 </Typography>
                 <Typography
                   variant="subtitle1"
@@ -479,8 +465,8 @@ const AdminDashboard = () => {
 
               {/* Regions List */}
               <Box sx={{ mb: 4 }}>
-                <Typography variant="h6" sx={{ mb: 2, display: 'flex', alignItems: 'center', gap: 1 }}>
-                  <LocationOnIcon sx={{ color: 'primary.main' }} />
+                <Typography variant="h6" sx={{ mb: 2, display: 'flex', alignItems: 'center', gap: 1, color: '#e53935', fontWeight: 700 }}>
+                  <LocationOnIcon sx={{ color: '#e53935' }} />
                   Regions
                 </Typography>
                 <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
@@ -490,7 +476,7 @@ const AdminDashboard = () => {
                       elevation={2}
                       sx={{ 
                         borderLeft: selectedRegionId === region.id ? '4px solid' : 'none',
-                        borderColor: 'primary.main',
+                        borderColor: '#e53935',
                         transition: 'all 0.2s ease',
                         '&:hover': { 
                           boxShadow: 4,
@@ -526,7 +512,16 @@ const AdminDashboard = () => {
                             handleOpen(region);
                           }}
                           size="small"
-                          sx={{ color: 'primary.main' }}
+                          sx={{ 
+                            color: '#e53935', 
+                            backgroundColor: 'rgba(229,57,53,0.08)',
+                            borderRadius: 1,
+                            transition: 'background 0.2s, color 0.2s',
+                            '&:hover': {
+                              backgroundColor: '#e53935',
+                              color: '#fff',
+                            }
+                          }}
                         >
                           <EditIcon />
                         </IconButton>
@@ -544,14 +539,14 @@ const AdminDashboard = () => {
                     gutterBottom
                     sx={{
                       mt: 3,
-                      fontWeight: 600,
-                      color: 'primary.main',
+                      fontWeight: 700,
+                      color: '#e53935',
                       display: 'flex',
                       alignItems: 'center',
                       gap: 1,
                     }}
                   >
-                    <AssignmentIcon sx={{ fontSize: 20 }} />
+                    <AssignmentIcon sx={{ fontSize: 20, color: '#e53935' }} />
                     Reclamations for {regions.find(r => r.id === selectedRegionId)?.name}
                   </Typography>
 
@@ -577,9 +572,8 @@ const AdminDashboard = () => {
                     <Box sx={{ width: '100%' }}>
                       {/* Table Header */}
                       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-                        <Typography variant="h6" sx={{ mb: 2, display: 'flex', alignItems: 'center', gap: 1 }}>
-                          <AssignmentIcon sx={{ color: 'primary.main' }} />
-                          Reclamations
+                        <Typography variant="h6" sx={{ mb: 2, display: 'flex', alignItems: 'center', gap: 1, color: '#e53935', fontWeight: 700 }}>
+                         
                         </Typography>
                         <Box sx={{ display: 'flex', gap: 2 }}>
                           <FormControl size="small" sx={{ width: 120 }}>
@@ -600,7 +594,22 @@ const AdminDashboard = () => {
                             page={currentPage}
                             onChange={(e, page) => setCurrentPage(page)}
                             size="small"
-                            color="primary"
+                            sx={{
+                              '& .MuiPaginationItem-root': {
+                                color: '#e53935',
+                                borderColor: '#e53935',
+                              },
+                              '& .Mui-selected': {
+                                backgroundColor: '#e53935',
+                                color: '#fff',
+                              },
+                              '& .MuiPaginationItem-root.Mui-selected:hover': {
+                                backgroundColor: '#e53935',
+                              },
+                              '& .MuiPaginationItem-root:hover': {
+                                backgroundColor: 'rgba(229,57,53,0.08)',
+                              }
+                            }}
                           />
                         </Box>
                       </Box>
@@ -725,7 +734,7 @@ const AdminDashboard = () => {
 {/* Reclamations by Priority Section */}
 {activeSection === 'priority' && (
   <Paper sx={{ p: 3, mb: 4, borderRadius: 2, boxShadow: 3 }}>
-    <Typography variant="h5" component="h2" sx={{ mb: 3, fontWeight: 600 }}>
+    <Typography variant="h5" component="h2" sx={{ mb: 3, fontWeight: 600, color: '#e53935' }}>
       Priority-Based Reclamation Management
     </Typography>
 
@@ -844,7 +853,7 @@ const AdminDashboard = () => {
                   component="h2"
                   sx={{
                     fontWeight: 600,
-                    color: 'primary.main',
+                    color: '#e53935',
                     mb: 1,
                     display: 'flex',
                     alignItems: 'center',
@@ -924,78 +933,15 @@ const AdminDashboard = () => {
                   <Table>
                     <TableHead>
                       <TableRow sx={{ backgroundColor: 'background.paper' }}>
-                        <StyledTableCell sx={{ 
-                          fontWeight: 700,
-                          color: 'text.primary',
-                          borderBottom: '2px solid',
-                          borderColor: 'divider',
-                        }}>
-                          Name
-                        </StyledTableCell>
-                        <StyledTableCell sx={{ 
-                          fontWeight: 700,
-                          color: 'text.primary',
-                          borderBottom: '2px solid',
-                          borderColor: 'divider',
-                        }}>
-                          Email
-                        </StyledTableCell>
-                        <StyledTableCell sx={{ 
-                          fontWeight: 700,
-                          color: 'text.primary',
-                          borderBottom: '2px solid',
-                          borderColor: 'divider',
-                        }}>
-                          Full Name
-                        </StyledTableCell>
-                        <StyledTableCell sx={{ 
-                          fontWeight: 700,
-                          color: 'text.primary',
-                          borderBottom: '2px solid',
-                          borderColor: 'divider',
-                        }}>
-                          Phone Number
-                        </StyledTableCell>
-                        <StyledTableCell sx={{ 
-                          fontWeight: 700,
-                          color: 'text.primary',
-                          borderBottom: '2px solid',
-                          borderColor: 'divider',
-                        }}>
-                          Bank Account
-                        </StyledTableCell>
-                        <StyledTableCell sx={{ 
-                          fontWeight: 700,
-                          color: 'text.primary',
-                          borderBottom: '2px solid',
-                          borderColor: 'divider',
-                        }}>
-                          Balance
-                        </StyledTableCell>
-                        <StyledTableCell sx={{ 
-                          fontWeight: 700,
-                          color: 'text.primary',
-                          borderBottom: '2px solid',
-                          borderColor: 'divider',
-                        }}>
-                          Created At
-                        </StyledTableCell>
-                        <StyledTableCell sx={{ 
-                          fontWeight: 700,
-                          color: 'text.primary',
-                          borderBottom: '2px solid',
-                          borderColor: 'divider',
-                        }}>
-                          Updated At
-                        </StyledTableCell>
-                        <StyledTableCell sx={{ 
-                          fontWeight: 700,
-                          color: 'text.primary',
-                          borderBottom: '2px solid',
-                          borderColor: 'divider',
-                        }} align="center">
-                          Actions
-                        </StyledTableCell>
+                        <StyledTableCell sx={{ fontWeight: 700, borderBottom: '2px solid', borderColor: 'divider' }}>Name</StyledTableCell>
+                        <StyledTableCell sx={{ fontWeight: 700, borderBottom: '2px solid', borderColor: 'divider' }}>Email</StyledTableCell>
+                        <StyledTableCell sx={{ fontWeight: 700, borderBottom: '2px solid', borderColor: 'divider' }}>Full Name</StyledTableCell>
+                        <StyledTableCell sx={{ fontWeight: 700, borderBottom: '2px solid', borderColor: 'divider' }}>Phone Number</StyledTableCell>
+                        <StyledTableCell sx={{ fontWeight: 700, borderBottom: '2px solid', borderColor: 'divider' }}>Bank Account</StyledTableCell>
+                        <StyledTableCell sx={{ fontWeight: 700, borderBottom: '2px solid', borderColor: 'divider' }}>Balance</StyledTableCell>
+                        <StyledTableCell sx={{ fontWeight: 700, borderBottom: '2px solid', borderColor: 'divider' }}>Created At</StyledTableCell>
+                        <StyledTableCell sx={{ fontWeight: 700, borderBottom: '2px solid', borderColor: 'divider' }}>Updated At</StyledTableCell>
+                        <StyledTableCell sx={{ fontWeight: 700, borderBottom: '2px solid', borderColor: 'divider' }} align="center">Actions</StyledTableCell>
                       </TableRow>
                     </TableHead>
                     <TableBody>
@@ -1007,31 +953,14 @@ const AdminDashboard = () => {
                             <StyledTableCell>{user.full_name}</StyledTableCell>
                             <StyledTableCell>{user.number}</StyledTableCell>
                             <StyledTableCell>{user.bank_account_number}</StyledTableCell>
-                            <StyledTableCell>
-                              <StyledChip
-                                label={`$${user.bank_account_balance?.toLocaleString() || '0.00'}`}
-                                color="primary"
-                                size="small"
-                                sx={{
-                                  backgroundColor: 'primary.light',
-                                  color: 'primary.contrastText',
-                                  '& .MuiChip-label': {
-                                    fontWeight: 500,
-                                  },
-                                }}
-                              />
-                            </StyledTableCell>
-                            <StyledTableCell>
-                              {format(new Date(user.createdAt), 'dd MMM yyyy HH:mm')}
-                            </StyledTableCell>
-                            <StyledTableCell>
-                              {format(new Date(user.updatedAt), 'dd MMM yyyy HH:mm')}
-                            </StyledTableCell>
+                            <StyledTableCell>{user.bank_account_balance?.toLocaleString('en-US', { style:'currency', currency:'USD' })}</StyledTableCell>
+                            <StyledTableCell>{format(new Date(user.createdAt), 'dd MMM yyyy')}</StyledTableCell>
+                            <StyledTableCell>{format(new Date(user.updatedAt), 'dd MMM yyyy')}</StyledTableCell>
                             <StyledTableCell align="center">
                               <StyledIconButton
                                 size="small"
                                 onClick={() => handleEditUser(user.id)}
-                                color="primary"
+                                color="primary" 
                                 sx={{
                                   '&:hover': {
                                     backgroundColor: 'primary.light',
@@ -1062,8 +991,7 @@ const AdminDashboard = () => {
                               display: 'flex', 
                               flexDirection: 'column', 
                               alignItems: 'center',
-                              color: 'text.secondary',
-                              gap: 1,
+                              color: 'text.secondary'
                             }}>
                               <InfoOutlinedIcon sx={{ fontSize: 40, color: 'text.secondary' }} />
                               <Typography variant="body1" sx={{ color: 'text.secondary' }}>

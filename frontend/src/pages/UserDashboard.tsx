@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
+import { useTheme } from '@mui/material/styles';
 import { useAuth } from '../components/context/AuthContext';
-import ChatGPTBox from '../components/ChatGPTBox';
 import FakeChatbot from '../components/FakeChatbot';
 import ChatbotPanel from '../components/ChatbotPanel'; // Adjust path
 
@@ -69,6 +69,8 @@ interface FormValues {
 }
 
 const UserDashboard = () => {
+  const theme = useTheme();
+
   const [chatOpen, setChatOpen] = useState(false);
 
   const { user, token, logout } = useAuth();
@@ -262,7 +264,7 @@ const UserDashboard = () => {
   };
 
   return (
-    <><Box sx={{ p: 3 }}>
+    <><Box sx={{ p: 3, bgcolor: theme.palette.background.default, color: theme.palette.text.primary, minHeight: '100vh' }}>
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
         <Typography variant="h4">User Dashboard</Typography>
         <Button
@@ -285,6 +287,38 @@ const UserDashboard = () => {
 
       </Box>
 
+      {/* Summary Cards */}
+      <Box sx={{ display: 'flex', gap: 2, mb: 3 }}>
+        {[
+          { label: 'Total Requests', value: reclams.length },
+          { label: 'Pending', value: reclams.filter(r => r.status === 'pending').length },
+          { label: 'Resolved', value: reclams.filter(r => r.status === 'resolved').length }
+        ].map(item => (
+          <Paper
+            key={item.label}
+            sx={{
+              flex: 1,
+              p: 2,
+              background: 'linear-gradient(90deg, #e53935 0%, #b71c1c 100%)',
+              color: '#fff',
+              borderRadius: 2,
+              boxShadow: 3,
+              cursor: 'pointer',
+              transition: 'transform 0.3s, box-shadow 0.3s',
+              '&:hover': {
+                transform: 'translateY(-4px) scale(1.03)',
+                boxShadow: 6,
+                background: 'linear-gradient(90deg, #b71c1c 0%, #e53935 100%)',
+                filter: 'brightness(1.08)',
+              },
+            }}
+          >
+            <Typography variant="subtitle2" sx={{ color: '#fff', mb: 1 }}>{item.label}</Typography>
+            <Typography variant="h4" sx={{ color: '#fff', fontWeight: 'bold' }}>{item.value}</Typography>
+          </Paper>
+        ))}
+      </Box>
+
       {error && (
         <Alert severity="error" sx={{ mb: 2 }}>
           {error}
@@ -293,15 +327,20 @@ const UserDashboard = () => {
 
       <Button
         variant="contained"
-        color="primary"
         onClick={() => handleOpen()}
         startIcon={<AddIcon />}
-        sx={{ mb: 2 }}
+        sx={{
+          mb: 2,
+          background: 'linear-gradient(90deg, #e53935 0%, #b71c1c 100%)',
+          color: '#fff',
+          fontWeight: 'bold',
+          '&:hover': { background: 'linear-gradient(90deg, #b71c1c 0%, #e53935 100%)' }
+        }}
       >
-        Adresser  une Reclamation
+        + New Request
       </Button>
 
-      <Paper sx={{ p: 2, mb: 3 }}>
+      <Paper sx={{ p: 2, mb: 3, bgcolor: theme.palette.background.paper, color: theme.palette.text.primary }}>
         <Typography variant="h6" gutterBottom>
           Reclamations
         </Typography>
@@ -367,9 +406,24 @@ const UserDashboard = () => {
         )}
       </Paper>
 
-      <Dialog open={open} onClose={handleClose} maxWidth="md" fullWidth>
+      <Dialog
+        open={open}
+        onClose={handleClose}
+        maxWidth="md"
+        fullWidth
+        PaperProps={{ sx: { borderRadius: 3, bgcolor: theme.palette.background.paper, boxShadow: 5 } }}
+      >
         <form onSubmit={handleSubmit}>
-          <DialogTitle>{editingReclam ? 'Edit Reclamation' : 'Add New Reclamation'}</DialogTitle>
+          <DialogTitle
+            sx={{
+              bgcolor: 'linear-gradient(90deg, #e53935 0%, #b71c1c 100%)',
+              color: '#fff',
+              textAlign: 'center',
+              fontWeight: 'bold',
+            }}
+          >
+            {editingReclam ? 'Edit Reclamation' : 'Add New Reclamation'}
+          </DialogTitle>
           <DialogContent>
             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
               <TextField
@@ -462,9 +516,25 @@ const UserDashboard = () => {
               </LocalizationProvider>
             </Box>
           </DialogContent>
-          <DialogActions>
-            <Button onClick={handleClose}>Cancel</Button>
-            <Button type="submit" variant="contained" color="primary" disabled={loading}>
+          <DialogActions sx={{ p: 2, justifyContent: 'flex-end' }}>
+            <Button
+              onClick={handleClose}
+              sx={{ color: '#e53935', fontWeight: 'bold' }}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="submit"
+              variant="contained"
+              disabled={loading}
+              sx={{
+                ml: 1,
+                background: 'linear-gradient(90deg, #e53935 0%, #b71c1c 100%)',
+                color: '#fff',
+                fontWeight: 'bold',
+                '&:hover': { background: 'linear-gradient(90deg, #b71c1c 0%, #e53935 100%)' }
+              }}
+            >
               {loading ? <CircularProgress size={24} /> : editingReclam ? 'Update' : 'Add'}
             </Button>
           </DialogActions>

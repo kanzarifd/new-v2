@@ -19,6 +19,7 @@ import {
   People as PeopleIcon,
   Menu as MenuIcon,
   MenuOpen as MenuOpenIcon,
+  Assignment as AssignmentIcon,
 } from '@mui/icons-material';
 
 interface AdminSidebarProps {
@@ -148,16 +149,21 @@ const AdminSidebar: React.FC<AdminSidebarProps> = ({
                 justifyContent: isCollapsed ? 'center' : 'flex-start',
                 bgcolor: activeSection === item.section ? theme.palette.action.selected : 'transparent',
                 '&:hover': {
-                  backgroundColor: theme.palette.action.hover,
+                  backgroundColor: '#8B0000', // darkred
+                  color: '#fff',
+                  '& .MuiListItemIcon-root': {
+                    color: '#fff',
+                  },
                 },
               }}
             >
               <ListItemIcon
                 sx={{
-                  color: activeSection === item.section ? theme.palette.primary.main : 'inherit',
+                  color: '#e53935',
                   minWidth: isCollapsed ? 0 : 40,
                   mr: isCollapsed ? 0 : 2,
                   justifyContent: 'center',
+                  transition: 'color 0.2s',
                 }}
               >
                 {item.icon}

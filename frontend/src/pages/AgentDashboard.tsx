@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback  } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../components/context/AuthContext';
+import { useThemeContext } from '../contexts/ThemeContext';
 import {
   Box,
   Typography,
@@ -37,6 +38,7 @@ import axios from 'axios';
 import { DndProvider, useDrag, useDrop } from 'react-dnd';
 import { HTML5Backend } from 'react-dnd-html5-backend';
 import { format } from 'date-fns';
+import AgentHeader from './AgentHeader';
 
 interface Reclamation {
   id: number;
@@ -62,6 +64,9 @@ interface Reclamation {
 const AgentDashboard = () => {
   const navigate = useNavigate();
   const { user, logout } = useAuth();
+  const { mode } = useThemeContext();
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -73,7 +78,7 @@ const AgentDashboard = () => {
     priority: 'medium'
   });
 
-  const theme = useTheme();
+  const [drawerOpen, setDrawerOpen] = useState(false);
 
   interface StatusColorConfig {
     background: string;
@@ -263,18 +268,21 @@ const AgentDashboard = () => {
 
   return (
     <DndProvider backend={HTML5Backend}>
-      <Box sx={{ p: 3 }}>
+      <AgentHeader
+        toggleDrawer={() => setDrawerOpen(!drawerOpen)}
+        onLogout={logout}
+        isMobile={isMobile}
+      />
+      <Box sx={{
+        p: 3,
+        bgcolor: mode === 'dark' ? 'background.default' : 'background.default',
+        minHeight: '100vh',
+        color: mode === 'dark' ? 'text.primary' : 'text.primary',
+        transition: 'background 0.3s, color 0.3s',
+      }}>
         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
           <Typography variant="h4">Agent Dashboard</Typography>
-          <Button
-            variant="outlined"
-            color="error"
-            startIcon={<LogoutIcon />}
-            onClick={handleLogout}
-            sx={{ ml: 1 }}
-          >
-            Logout
-          </Button>
+         
         </Box>
 
         {/* Statistics */}
@@ -285,33 +293,53 @@ const AgentDashboard = () => {
                 p: 2,
                 textAlign: 'center',
                 borderRadius: 2,
-                transition: 'all 0.3s ease',
+                background: 'linear-gradient(135deg, #b71c1c 0%, #e53935 100%)',
+                color: '#fff',
+                boxShadow: theme.shadows[4],
+                transition: 'all 0.3s cubic-bezier(.4,2,.6,1)',
                 cursor: 'default',
+                position: 'relative',
+                overflow: 'hidden',
                 '&:hover': {
-                  transform: 'translateY(-2px)',
-                  boxShadow: theme.shadows[6]
-                }
+                  transform: 'translateY(-4px) scale(1.03)',
+                  boxShadow: theme.shadows[8],
+                  background: 'linear-gradient(135deg, #a31515 0%, #e53935 100%)',
+                  transition: 'all 0.25s cubic-bezier(.4,2,.6,1)',
+                },
+                '&::after': {
+                  content: '""',
+                  position: 'absolute',
+                  top: 0,
+                  left: 0,
+                  width: '100%',
+                  height: '100%',
+                  background: 'radial-gradient(circle at 70% 30%, rgba(255,255,255,0.08) 0%, transparent 70%)',
+                  zIndex: 0,
+                  pointerEvents: 'none',
+                  transition: 'opacity 0.3s',
+                },
               }}
-              elevation={3}
             >
-              <Typography
-                variant="h6"
-                sx={{
-                  color: getStatusColor('pending').text,
-                  fontWeight: 'bold'
-                }}
-              >
-                {getStatusCount('pending')}
-              </Typography>
-              <Typography
-                variant="subtitle2"
-                sx={{
-                  color: getStatusColor('pending').text,
-                  fontWeight: 500
-                }}
-              >
-                Pending
-              </Typography>
+              <Box sx={{ position: 'relative', zIndex: 1 }}>
+                <Typography
+                  variant="h6"
+                  sx={{
+                    color: '#111',
+                    fontWeight: 'bold',
+                  }}
+                >
+                  {getStatusCount('pending')}
+                </Typography>
+                <Typography
+                  variant="subtitle2"
+                  sx={{
+                    color: '#111',
+                    fontWeight: 'bold',
+                  }}
+                >
+                  Pending
+                </Typography>
+              </Box>
             </Paper>
           </Grid>
           <Grid item xs={12} sm={3}>
@@ -320,33 +348,53 @@ const AgentDashboard = () => {
                 p: 2,
                 textAlign: 'center',
                 borderRadius: 2,
-                transition: 'all 0.3s ease',
+                background: 'linear-gradient(135deg, #b71c1c 0%, #e53935 100%)',
+                color: '#fff',
+                boxShadow: theme.shadows[4],
+                transition: 'all 0.3s cubic-bezier(.4,2,.6,1)',
                 cursor: 'default',
+                position: 'relative',
+                overflow: 'hidden',
                 '&:hover': {
-                  transform: 'translateY(-2px)',
-                  boxShadow: theme.shadows[6]
-                }
+                  transform: 'translateY(-4px) scale(1.03)',
+                  boxShadow: theme.shadows[8],
+                  background: 'linear-gradient(135deg, #a31515 0%, #e53935 100%)',
+                  transition: 'all 0.25s cubic-bezier(.4,2,.6,1)',
+                },
+                '&::after': {
+                  content: '""',
+                  position: 'absolute',
+                  top: 0,
+                  left: 0,
+                  width: '100%',
+                  height: '100%',
+                  background: 'radial-gradient(circle at 70% 30%, rgba(255,255,255,0.08) 0%, transparent 70%)',
+                  zIndex: 0,
+                  pointerEvents: 'none',
+                  transition: 'opacity 0.3s',
+                },
               }}
-              elevation={3}
             >
-              <Typography
-                variant="h6"
-                sx={{
-                  color: getStatusColor('in_progress').text,
-                  fontWeight: 'bold'
-                }}
-              >
-                {getStatusCount('in_progress')}
-              </Typography>
-              <Typography
-                variant="subtitle2"
-                sx={{
-                  color: getStatusColor('in_progress').text,
-                  fontWeight: 500
-                }}
-              >
-                In Progress
-              </Typography>
+              <Box sx={{ position: 'relative', zIndex: 1 }}>
+                <Typography
+                  variant="h6"
+                  sx={{
+                    color: '#111',
+                    fontWeight: 'bold',
+                  }}
+                >
+                  {getStatusCount('in_progress')}
+                </Typography>
+                <Typography
+                  variant="subtitle2"
+                  sx={{
+                    color: '#111',
+                    fontWeight: 'bold',
+                  }}
+                >
+                  In Progress
+                </Typography>
+              </Box>
             </Paper>
           </Grid>
           <Grid item xs={12} sm={3}>
@@ -355,33 +403,53 @@ const AgentDashboard = () => {
                 p: 2,
                 textAlign: 'center',
                 borderRadius: 2,
-                transition: 'all 0.3s ease',
+                background: 'linear-gradient(135deg, #b71c1c 0%, #e53935 100%)',
+                color: '#fff',
+                boxShadow: theme.shadows[4],
+                transition: 'all 0.3s cubic-bezier(.4,2,.6,1)',
                 cursor: 'default',
+                position: 'relative',
+                overflow: 'hidden',
                 '&:hover': {
-                  transform: 'translateY(-2px)',
-                  boxShadow: theme.shadows[6]
-                }
+                  transform: 'translateY(-4px) scale(1.03)',
+                  boxShadow: theme.shadows[8],
+                  background: 'linear-gradient(135deg, #a31515 0%, #e53935 100%)',
+                  transition: 'all 0.25s cubic-bezier(.4,2,.6,1)',
+                },
+                '&::after': {
+                  content: '""',
+                  position: 'absolute',
+                  top: 0,
+                  left: 0,
+                  width: '100%',
+                  height: '100%',
+                  background: 'radial-gradient(circle at 70% 30%, rgba(255,255,255,0.08) 0%, transparent 70%)',
+                  zIndex: 0,
+                  pointerEvents: 'none',
+                  transition: 'opacity 0.3s',
+                },
               }}
-              elevation={3}
             >
-              <Typography
-                variant="h6"
-                sx={{
-                  color: getStatusColor('resolved').text,
-                  fontWeight: 'bold'
-                }}
-              >
-                {getStatusCount('resolved')}
-              </Typography>
-              <Typography
-                variant="subtitle2"
-                sx={{
-                  color: getStatusColor('resolved').text,
-                  fontWeight: 500
-                }}
-              >
-                Resolved
-              </Typography>
+              <Box sx={{ position: 'relative', zIndex: 1 }}>
+                <Typography
+                  variant="h6"
+                  sx={{
+                    color: '#111',
+                    fontWeight: 'bold',
+                  }}
+                >
+                  {getStatusCount('resolved')}
+                </Typography>
+                <Typography
+                  variant="subtitle2"
+                  sx={{
+                    color: '#111',
+                    fontWeight: 'bold',
+                  }}
+                >
+                  Resolved
+                </Typography>
+              </Box>
             </Paper>
           </Grid>
           <Grid item xs={12} sm={3}>
@@ -390,33 +458,53 @@ const AgentDashboard = () => {
                 p: 2,
                 textAlign: 'center',
                 borderRadius: 2,
-                transition: 'all 0.3s ease',
+                background: 'linear-gradient(135deg, #b71c1c 0%, #e53935 100%)',
+                color: '#fff',
+                boxShadow: theme.shadows[4],
+                transition: 'all 0.3s cubic-bezier(.4,2,.6,1)',
                 cursor: 'default',
+                position: 'relative',
+                overflow: 'hidden',
                 '&:hover': {
-                  transform: 'translateY(-2px)',
-                  boxShadow: theme.shadows[6]
-                }
+                  transform: 'translateY(-4px) scale(1.03)',
+                  boxShadow: theme.shadows[8],
+                  background: 'linear-gradient(135deg, #a31515 0%, #e53935 100%)',
+                  transition: 'all 0.25s cubic-bezier(.4,2,.6,1)',
+                },
+                '&::after': {
+                  content: '""',
+                  position: 'absolute',
+                  top: 0,
+                  left: 0,
+                  width: '100%',
+                  height: '100%',
+                  background: 'radial-gradient(circle at 70% 30%, rgba(255,255,255,0.08) 0%, transparent 70%)',
+                  zIndex: 0,
+                  pointerEvents: 'none',
+                  transition: 'opacity 0.3s',
+                },
               }}
-              elevation={3}
             >
-              <Typography
-                variant="h6"
-                sx={{
-                  color: getStatusColor('closed').text,
-                  fontWeight: 'bold'
-                }}
-              >
-                {getStatusCount('closed')}
-              </Typography>
-              <Typography
-                variant="subtitle2"
-                sx={{
-                  color: getStatusColor('closed').text,
-                  fontWeight: 500
-                }}
-              >
-                Closed
-              </Typography>
+              <Box sx={{ position: 'relative', zIndex: 1 }}>
+                <Typography
+                  variant="h6"
+                  sx={{
+                    color: '#111',
+                    fontWeight: 'bold',
+                  }}
+                >
+                  {getStatusCount('closed')}
+                </Typography>
+                <Typography
+                  variant="subtitle2"
+                  sx={{
+                    color: '#111',
+                    fontWeight: 'bold',
+                  }}
+                >
+                  Closed
+                </Typography>
+              </Box>
             </Paper>
           </Grid>
         </Grid>

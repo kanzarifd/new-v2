@@ -10,6 +10,8 @@ import {
   getUsersByRole,
   deleteUser
 } from '../controllers/userController';
+import { PrismaClient } from '@prisma/client';
+const prisma = new PrismaClient();
 
 // Helper function to wrap async controllers
 const asyncHandler = (
@@ -96,6 +98,32 @@ router.get('/role/:role', asyncHandler(async (req: Request, res: Response, next:
   } catch (error) {
     next(error);
   }
+}));
+
+// Get current authenticated user profile
+router.get('/me', asyncHandler(async (req: Request, res: Response) => {
+  // TODO: Replace with actual auth-derived user ID
+  // For now, using a placeholder ID from headers or default to 1
+  const userId = Number(req.headers['x-user-id'] || 1);
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: {
+      id: true,
+      username: true,
+      name: true,
+      email: true,
+      full_name: true,
+      number: true,
+      bank_account_number: true,
+      bank_account_balance: true,
+      createdAt: true,
+      updatedAt: true,
+      role: true,
+      regionId: true
+    }
+  });
+  if (!user) return res.status(404).json({ message: 'User not found' });
+  res.json(user);
 }));
 
 export { router };

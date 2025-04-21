@@ -14,6 +14,15 @@ export interface RegionFormData {
 export interface User {
   id: number;
   username: string;
+  name: string;
+  email: string;
+  full_name: string;
+  number: string;
+  bank_account_number: string;
+  bank_account_balance?: number;
+  createdAt: string;
+  updatedAt: string;
+  /** ISO timestamp when user was last updated */
   role: string;
   regionId?: number;
 }
@@ -24,5 +33,12 @@ export interface Reclam {
   description: string;
   status: string;
   priority: string;
-  regionId: number;
+  date_debut: string;
+  date_fin: string;
+  /** Optional IDs for compatibility */
+  regionId?: number;
+  userId?: number;
+  /** Nested objects from API */
+  user?: { id: number; name: string };
+  region?: { id: number; name: string };
 }

@@ -12,6 +12,7 @@ import AdminDashboard from './pages/AdminDashboard';
 import UserDashboard from './pages/UserDashboard';
 import ResetPassword from './pages/ResetPassword';
 import AgentDashboard from './pages/AgentDashboard';
+import ForgotPassword from './pages/ForgotPassword';
 
 function App() {
   return (
@@ -25,6 +26,7 @@ function App() {
               <Route path="/login" element={<Login />} />
               <Route path="/register" element={<Register />} />
               <Route path="/reset-password" element={<ResetPassword />} />
+              <Route path="/forgot-password" element={<ForgotPassword />} />
 
               {/* Protected Routes */}
               <Route

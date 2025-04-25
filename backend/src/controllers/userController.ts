@@ -568,3 +568,27 @@ export const getUsersByRole = async (req: Request, res: Response, role: Prisma.U
     return res.status(500).json({ error: error.message });
   }
 };
+
+// Change password controller
+export const changePassword = async (req: Request, res: Response) => {
+  const { id } = req.params;
+  const { currentPassword, newPassword } = req.body;
+  if (!currentPassword || !newPassword) {
+    return res.status(400).json({ message: 'Current and new password are required.' });
+  }
+  try {
+    const user = await prisma.user.findUnique({ where: { id: Number(id) } });
+    if (!user) {
+      return res.status(404).json({ message: 'User not found.' });
+    }
+    const passwordMatch = await bcrypt.compare(currentPassword, user.password);
+    if (!passwordMatch) {
+      return res.status(401).json({ message: 'Current password is incorrect.' });
+    }
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+    await prisma.user.update({ where: { id: Number(id) }, data: { password: hashedPassword } });
+    return res.json({ message: 'Password changed successfully.' });
+  } catch (error) {
+    return res.status(500).json({ message: 'Failed to change password.', error: error.message });
+  }
+};

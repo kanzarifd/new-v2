@@ -42,4 +42,5 @@ export interface Reclam {
   user?: { id: number; name: string };
   region?: { id: number; name: string };
   attachment?: string;
+  currentAgency?: string;
 }

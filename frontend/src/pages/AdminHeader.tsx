@@ -21,6 +21,9 @@ import {
   Grid,
   Paper,
   Badge,
+  TextField,
+  Alert,
+  InputAdornment
 } from '@mui/material';
 import {
   Brightness4 as DarkModeIcon,
@@ -37,6 +40,9 @@ import {
   Phone,
   Notifications as NotificationsIcon,
 } from '@mui/icons-material';
+import LockOutlinedIcon from '@mui/icons-material/LockOutlined';
+import VpnKeyIcon from '@mui/icons-material/VpnKey';
+import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
 import axios from 'axios';
 import { useThemeContext } from '../contexts/ThemeContext';
 import api from '../config/api';
@@ -63,6 +69,9 @@ const AdminHeader: React.FC<AdminHeaderProps> = ({
   const [profile, setProfile] = useState<User | null>(null);
   const [adminInfo, setAdminInfo] = useState<any>(null);
   const [profileDialogOpen, setProfileDialogOpen] = useState(false);
+  const [changePasswordDialogOpen, setChangePasswordDialogOpen] = useState(false);
+  const [changePasswordError, setChangePasswordError] = useState('');
+  const [changePasswordLoading, setChangePasswordLoading] = useState(false);
 
   // Notification system state
   const [notificationAnchorEl, setNotificationAnchorEl] = useState<null | HTMLElement>(null);
@@ -136,6 +145,41 @@ const AdminHeader: React.FC<AdminHeaderProps> = ({
     }, 10000);
     return () => clearInterval(interval);
   }, []);
+
+  // Handler for password change submission
+  const handleChangePassword = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setChangePasswordError('');
+    setChangePasswordLoading(true);
+    const formData = new FormData(event.currentTarget);
+    const currentPassword = formData.get('currentPassword') as string;
+    const newPassword = formData.get('newPassword') as string;
+    const confirmPassword = formData.get('confirmPassword') as string;
+    if (!currentPassword || !newPassword || !confirmPassword) {
+      setChangePasswordError('Please fill in all fields.');
+      setChangePasswordLoading(false);
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      setChangePasswordError('New passwords do not match.');
+      setChangePasswordLoading(false);
+      return;
+    }
+    try {
+      const stored = localStorage.getItem('user');
+      const userId = stored ? JSON.parse(stored).id : null;
+      if (!userId) throw new Error('User not found');
+      await api.patch(`/api/users/${userId}/change-password`, {
+        currentPassword,
+        newPassword
+      });
+      setChangePasswordDialogOpen(false);
+    } catch (err: any) {
+      setChangePasswordError(err.response?.data?.message || err.message || 'Failed to change password.');
+    } finally {
+      setChangePasswordLoading(false);
+    }
+  };
 
   return (
     <Box>
@@ -416,11 +460,15 @@ const AdminHeader: React.FC<AdminHeaderProps> = ({
                   {profile?.username || profile?.name || profile?.email}
                 </Typography>
               </MenuItem>
-              <MenuItem sx={{ borderRadius: 1, px: 2, py: 1 }}>
-                <ListItemIcon sx={{ color: theme.palette.info.main, minWidth: 32 }}>
-                  <SettingsIcon fontSize="small" />
+              <MenuItem onClick={() => setChangePasswordDialogOpen(true)} sx={{
+                borderRadius: 1,
+                px: 2,
+                py: 1,
+              }}>
+                <ListItemIcon sx={{ color: '#b71c1c', minWidth: 32 }}>
+                  <LockOutlinedIcon fontSize="small" />
                 </ListItemIcon>
-                <Typography variant="body2" sx={{ fontWeight: 600, color: theme.palette.text.primary }}>Settings</Typography>
+                <Typography variant="body2" sx={{ fontWeight: 600, color: theme.palette.text.primary }}>Change Password</Typography>
               </MenuItem>
               <Divider />
               <MenuItem onClick={onLogout} sx={{ borderRadius: 1, color: theme.palette.error.main, px: 2, py: 1 }}>
@@ -526,7 +574,61 @@ const AdminHeader: React.FC<AdminHeaderProps> = ({
         </DialogActions>
       </Dialog>
 
-
+      {/* Change Password Dialog */}
+      <Dialog open={changePasswordDialogOpen} onClose={() => setChangePasswordDialogOpen(false)} fullWidth maxWidth="xs">
+        <DialogTitle sx={{ fontWeight: 'bold', color: '#b71c1c', textAlign: 'center', letterSpacing: 1, fontSize: 22, textShadow: '0 2px 8px rgba(183,28,28,0.15)' }}>
+          Change Password
+        </DialogTitle>
+        <DialogContent dividers sx={{ bgcolor: '#ffffff', borderColor: '#b71c1c' }}>
+          <Box component="form" onSubmit={handleChangePassword} sx={{ mt: 1 }}>
+            {changePasswordError && (
+              <Alert severity="error" sx={{ mb: 2, bgcolor: '#ffcdd2', color: '#b71c1c', border: '1px solid #b71c1c' }}>{changePasswordError}</Alert>
+            )}
+            <TextField
+              margin="normal"
+              required
+              fullWidth
+              name="currentPassword"
+              label="Current Password"
+              type="password"
+              autoComplete="current-password"
+              sx={{ mb: 2, '& label': { color: '#b71c1c' }, '& .MuiOutlinedInput-root': { '& fieldset': { borderColor: '#b71c1c' }, '&:hover fieldset': { borderColor: '#7f1010' }, '&.Mui-focused fieldset': { borderColor: '#b71c1c' }, '& .MuiInputAdornment-root .MuiSvgIcon-root': { color: '#b71c1c' } } }}
+              InputProps={{ startAdornment: <InputAdornment position="start"><LockOutlinedIcon sx={{ color: '#b71c1c' }} /></InputAdornment> }}
+              disabled={changePasswordLoading}
+            />
+            <TextField
+              margin="normal"
+              required
+              fullWidth
+              name="newPassword"
+              label="New Password"
+              type="password"
+              autoComplete="new-password"
+              sx={{ mb: 2, '& label': { color: '#b71c1c' }, '& .MuiOutlinedInput-root': { '& fieldset': { borderColor: '#b71c1c' }, '&:hover fieldset': { borderColor: '#7f1010' }, '&.Mui-focused fieldset': { borderColor: '#b71c1c' }, '& .MuiInputAdornment-root .MuiSvgIcon-root': { color: '#b71c1c' } } }}
+              InputProps={{ startAdornment: <InputAdornment position="start"><VpnKeyIcon sx={{ color: '#b71c1c' }} /></InputAdornment> }}
+              disabled={changePasswordLoading}
+            />
+            <TextField
+              margin="normal"
+              required
+              fullWidth
+              name="confirmPassword"
+              label="Confirm New Password"
+              type="password"
+              autoComplete="new-password"
+              sx={{ mb: 2, '& label': { color: '#b71c1c' }, '& .MuiOutlinedInput-root': { '& fieldset': { borderColor: '#b71c1c' }, '&:hover fieldset': { borderColor: '#7f1010' }, '&.Mui-focused fieldset': { borderColor: '#b71c1c' }, '& .MuiInputAdornment-root .MuiSvgIcon-root': { color: '#b71c1c' } } }}
+              InputProps={{ startAdornment: <InputAdornment position="start"><CheckCircleOutlineIcon sx={{ color: '#b71c1c' }} /></InputAdornment> }}
+              disabled={changePasswordLoading}
+            />
+            <DialogActions>
+              <Button onClick={() => setChangePasswordDialogOpen(false)} sx={{ bgcolor: '#fff', color: '#b71c1c', border: '1px solid #b71c1c', '&:hover': { bgcolor: '#ffcdd2' } }} disabled={changePasswordLoading}>Cancel</Button>
+              <Button type="submit" variant="contained" sx={{ bgcolor: '#b71c1c', color: '#fff', '&:hover': { bgcolor: '#7f1010' } }} disabled={changePasswordLoading}>
+                {changePasswordLoading ? 'Changing...' : 'Change Password'}
+              </Button>
+            </DialogActions>
+          </Box>
+        </DialogContent>
+      </Dialog>
     </Box>
   );
 };

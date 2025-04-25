@@ -62,6 +62,8 @@ import { Reclam } from '../components/types';
 import AdminSidebar from './AdminSidebar';
 import AdminHeader from './AdminHeader';
 import AttachmentPreviewDialog from '../components/AttachmentPreviewDialog';
+import CreateUserDialog from '../components/CreateUserDialog';
+import EditUserDialog from '../components/EditUserDialog';
 
 import { styled } from '@mui/material/styles';
 
@@ -167,6 +169,9 @@ const AdminDashboard = () => {
   const [usersError, setUsersError] = useState<string | null>(null);
   const [reclamations, setReclamations] = useState([]);
 
+  // User Creation Dialog State
+  const [createUserOpen, setCreateUserOpen] = useState(false);
+
   // Table state
   const [sortBy, setSortBy] = useState<keyof Reclam>('date_debut');
   const [order, setOrder] = useState<'asc' | 'desc'>('desc');
@@ -199,6 +204,10 @@ const AdminDashboard = () => {
   const [attachmentPreviewOpen, setAttachmentPreviewOpen] = useState(false);
   const [attachmentPreviewSrc, setAttachmentPreviewSrc] = useState<string | null>(null);
   const [attachmentPreviewIsImage, setAttachmentPreviewIsImage] = useState(true);
+
+  // Edit user dialog state
+  const [editUserDialogOpen, setEditUserDialogOpen] = useState(false);
+  const [userToEdit, setUserToEdit] = useState<any>(null);
 
   const handleLogout = () => {
     localStorage.clear();
@@ -397,8 +406,44 @@ const AdminDashboard = () => {
     reclam.priority === selectedPriority
   );
 
-  function handleEditUser(id: any): void {
-    throw new Error('Function not implemented.');
+  function openEditUserDialog(userId: number) {
+    const user = usersByRole.find((u) => u.id === userId);
+    if (!user) {
+      enqueueSnackbar('User not found', { variant: 'error' });
+      return;
+    }
+    setUserToEdit({
+      name: user.name,
+      full_name: user.full_name,
+      number: user.number,
+      email: user.email,
+      role: user.role,
+      bank_account_number: user.bank_account_number,
+      bank_account_balance: user.bank_account_balance?.toString() || '',
+    });
+    setEditUserDialogOpen(true);
+  }
+
+  async function handleEditUser(userId: number) {
+    openEditUserDialog(userId);
+  }
+
+  async function handleSaveEditedUser(form: any) {
+    if (!userToEdit) return;
+    try {
+      await axios.put(`http://localhost:8000/api/users/${usersByRole.find((u) => u.email === userToEdit.email)?.id}`,
+        {
+          ...form,
+          bank_account_balance: parseFloat(form.bank_account_balance)
+        }
+      );
+      enqueueSnackbar('User updated successfully', { variant: 'success' });
+      fetchUsersByRole(selectedUserRole);
+      setEditUserDialogOpen(false);
+      setUserToEdit(null);
+    } catch (error: any) {
+      enqueueSnackbar(error.response?.data?.message || 'Error updating user', { variant: 'error' });
+    }
   }
 
   // Scroll to reclam from search hash
@@ -1028,6 +1073,10 @@ const AdminDashboard = () => {
                 </Box>
               </Box>
 
+              <Button variant="contained" sx={{ bgcolor: '#b71c1c', color: '#fff', '&:hover': { bgcolor: '#7f1010' }, mb: 2 }} onClick={() => setCreateUserOpen(true)}>
+                Create New User
+              </Button>
+
               {loadingUsers ? (
                 <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', py: 4 }}>
                   <CircularProgress size={24} thickness={4} sx={{ color: 'primary.main' }} />
@@ -1112,6 +1161,17 @@ const AdminDashboard = () => {
                   </Table>
                 </StyledTableContainer>
               )}
+              <CreateUserDialog
+                open={createUserOpen}
+                onClose={() => setCreateUserOpen(false)}
+                onSuccess={() => fetchUsersByRole(selectedUserRole)}
+              />
+              <EditUserDialog
+                open={editUserDialogOpen}
+                user={userToEdit}
+                onClose={() => { setEditUserDialogOpen(false); setUserToEdit(null); }}
+                onSave={handleSaveEditedUser}
+              />
             </StyledCard>
           )}
         </Box>

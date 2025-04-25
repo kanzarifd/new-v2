@@ -2,9 +2,9 @@ import React, { useState, useEffect } from 'react';
 import api from '../config/api';
 import { BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 import { CheckCircle as CheckIcon, Pending as PendingIcon, Close as CloseIcon } from '@mui/icons-material';
-import { Paper, Typography, Box, Grid, CircularProgress, Alert, useTheme, TableContainer, Table as MuiTable, TableHead, TableBody, TableRow, TableCell, Avatar, IconButton, TableSortLabel, Chip, ChipProps, Dialog, DialogTitle, DialogContent, DialogActions, TextField, Select, MenuItem, Button, FormControl, InputLabel } from '@mui/material';
+import { Paper, Typography, Box, Grid, CircularProgress, Alert, useTheme, TableContainer, Table as MuiTable, TableHead, TableBody, TableRow, TableCell, Avatar, IconButton, TableSortLabel, Chip, ChipProps, Dialog, DialogTitle, DialogContent, DialogActions, TextField, Select, MenuItem, Button, FormControl, InputLabel, Checkbox, TablePagination } from '@mui/material';
 import { styled } from '@mui/material/styles';
-import EditIcon from '@mui/icons-material/Edit';
+import { Search, CheckCircle, Error as ErrorIcon, Edit } from '@mui/icons-material';
 import { format } from 'date-fns';
 import { ChartData } from '../types/dashboard';
 import { Reclam } from './types';
@@ -27,7 +27,7 @@ const AdminDashboardStats = ({ reclamations, onEdit }: AdminDashboardStatsProps)
   const [error, setError] = useState<string | null>(null);
 
   // Define the fields we can sort by
-  type SortableField = 'id' | 'date_debut' | 'description' | 'priority' | 'status' | 'regionId' | 'userId';
+  type SortableField = 'id' | 'date_debut' | 'description' | 'priority' | 'status' | 'regionId' | 'userId' | 'currentAgency';
 
   // Initialize sortBy state with proper type
   const [sortBy, setSortBy] = useState<SortableField>('id');
@@ -35,9 +35,8 @@ const AdminDashboardStats = ({ reclamations, onEdit }: AdminDashboardStatsProps)
   // Initialize order state
   const [order, setOrder] = useState<'asc' | 'desc'>('asc');
 
-  // Initialize currentPage and rowsPerPage state
+  // Initialize currentPage state (rowsPerPage is now declared only once)
   const [currentPage, setCurrentPage] = useState(1);
-  const [rowsPerPage, setRowsPerPage] = useState(10);
 
   // Helper function to get the value for sorting
   const getSortValue = (reclam: Reclam, field: SortableField) => {
@@ -56,6 +55,8 @@ const AdminDashboardStats = ({ reclamations, onEdit }: AdminDashboardStatsProps)
         return reclam.regionId ?? reclam.region?.id ?? 0;
       case 'userId':
         return reclam.userId ?? reclam.user?.id ?? 0;
+      case 'currentAgency':
+        return reclam.currentAgency;
       default:
         return reclam.id;
     }
@@ -153,6 +154,45 @@ const AdminDashboardStats = ({ reclamations, onEdit }: AdminDashboardStatsProps)
     setPreviewIsImage(!!reclam.attachment && /\.(jpg|jpeg|png|gif|bmp|webp)$/i.test(reclam.attachment));
     setPreviewOpen(true);
   };
+
+  const [selected, setSelected] = useState<number[]>([]);
+  const [search, setSearch] = useState('');
+  const [page, setPage] = useState(0);
+  const [rowsPerPage, setRowsPerPage] = useState(5);
+
+  const handleSelect = (id: number) => {
+    setSelected(prev => prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]);
+  };
+  const handleSelectAll = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.checked) {
+      setSelected(reclamations.map(r => r.id));
+    } else {
+      setSelected([]);
+    }
+  };
+  const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setSearch(e.target.value.toLowerCase());
+    setPage(0); // Reset to first page on search
+  };
+  const handleChangePage = (_: unknown, newPage: number) => setPage(newPage);
+  const handleChangeRowsPerPage = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setRowsPerPage(parseInt(e.target.value, 10));
+    setPage(0);
+  };
+
+  const filteredReclams = reclamations.filter(row => {
+    // Only search in visible, stringifiable fields for better UX
+    return (
+      (row.title && row.title.toLowerCase().includes(search)) ||
+      (row.status && row.status.toLowerCase().includes(search)) ||
+      (row.priority && row.priority.toLowerCase().includes(search)) ||
+      (row.currentAgency && row.currentAgency.toLowerCase().includes(search)) ||
+      (row.user?.name && row.user.name.toLowerCase().includes(search)) ||
+      (row.userId && row.userId.toString().toLowerCase().includes(search)) ||
+      (row.attachment && row.attachment.toLowerCase().includes(search))
+    );
+  });
+  const paginatedReclams = filteredReclams.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage);
 
   if (loading) {
     return (
@@ -307,108 +347,90 @@ const AdminDashboardStats = ({ reclamations, onEdit }: AdminDashboardStatsProps)
       </Grid>
 
       <Paper sx={{ mt: 4, p: 2 }}>
-        <Typography variant="h6" sx={{ mb: 2 }}>
-          Recent Reclamations
-        </Typography>
-        <TableContainer component={Paper} sx={{ mt: 2 }}>
+        <Box display="flex" justifyContent="space-between" alignItems="center" p={2}>
+          <Typography variant="h6">Recent Reclamations</Typography>
+          <TextField
+            variant="standard"
+            placeholder="Search..."
+            value={search}
+            onChange={handleSearch}
+            InputProps={{ startAdornment: <Search /> }}
+          />
+        </Box>
+        <TableContainer>
           <MuiTable>
             <TableHead>
               <TableRow>
-                {[
-                  { id: 'title', label: 'Title' },
-                  { id: 'status', label: 'Status' },
-                  { id: 'priority', label: 'Priority' },
-                  { id: 'date_debut', label: 'Start Date' },
-                  { id: 'userId', label: 'User' },
-                  { id: 'attachment', label: 'Attachment' },
-                  { id: 'actions', label: '' }
-                ].map((column) => (
-                  <TableCell key={column.id}>
-                    {column.id !== 'actions' ? (
-                      <TableSortLabel
-                        active={sortBy === column.id}
-                        direction={order}
-                        onClick={() => {
-                          if (sortBy === column.id) {
-                            setOrder(order === 'asc' ? 'desc' : 'asc');
-                          } else {
-                            setSortBy(column.id as any);
-                            setOrder('asc');
-                          }
-                        }}
-                      >
-                        {column.label}
-                      </TableSortLabel>
-                    ) : (
-                      column.label
-                    )}
-                  </TableCell>
-                ))}
+                <TableCell padding="checkbox">
+                  <Checkbox
+                    checked={selected.length === paginatedReclams.length && paginatedReclams.length > 0}
+                    indeterminate={selected.length > 0 && selected.length < paginatedReclams.length}
+                    onChange={handleSelectAll}
+                  />
+                </TableCell>
+                <TableCell>ID ⬇</TableCell>
+                <TableCell>Start Date</TableCell>
+                <TableCell>Title</TableCell>
+                <TableCell>User</TableCell>
+                <TableCell>Current Agency</TableCell>
+                <TableCell>Attachment</TableCell>
+                <TableCell>Status</TableCell>
+                <TableCell />
               </TableRow>
             </TableHead>
             <TableBody>
-              {reclamations
-                .slice((currentPage - 1) * rowsPerPage, currentPage * rowsPerPage)
-                .sort((a, b) => {
-                  if (sortBy === 'date_debut') {
-                    return order === 'asc'
-                      ? new Date(a.date_debut).getTime() - new Date(b.date_debut).getTime()
-                      : new Date(b.date_debut).getTime() - new Date(a.date_debut).getTime();
-                  }
-                  return 0;
-                })
-                .map((r) => {
-                  const isImage = r.attachment && /\.(jpg|jpeg|png|gif|bmp|webp)$/i.test(r.attachment);
-                  return (
-                    <StyledTableRow id={`reclam-${r.id}`} key={r.id} sx={{ '&:hover': { bgcolor: 'action.hover' } }}>
-                      <StyledTableCell>{r.title}</StyledTableCell>
-                      <StyledTableCell>
-                        <Chip label={r.status} size="small" color={statusColorMap[r.status]} />
-                      </StyledTableCell>
-                      <StyledTableCell>
-                        <Chip label={r.priority} size="small" color={priorityColorMap[r.priority]} />
-                      </StyledTableCell>
-                      <StyledTableCell>
-                        {format(new Date(r.date_debut), 'dd MMM yyyy')}
-                      </StyledTableCell>
-                      <StyledTableCell>
-                        <Box display="flex" alignItems="center" gap={1}>
-                          <Avatar sx={{ width: 24, height: 24, fontSize: 14 }}>
-                            {r.user?.name?.charAt(0)}
-                          </Avatar>
-                          {r.user?.name}
-                        </Box>
-                      </StyledTableCell>
-                      <StyledTableCell>
-                        {r.attachment ? (
-                          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minWidth: 100 }}>
-                            <Button size="small" variant="outlined" color="primary" onClick={() => handlePreviewAttachment(r)}>
-                              View
-                            </Button>
-                            {isImage && (
-                              <img
-                                src={`http://localhost:8000/uploads/${r.attachment}`}
-                                alt="attachment"
-                                style={{ maxWidth: 40, maxHeight: 40, borderRadius: 6, border: '1px solid #eee', marginLeft: 8 }}
-                                onError={e => { e.currentTarget.onerror = null; e.currentTarget.style.display = 'none'; }}
-                              />
-                            )}
-                          </Box>
-                        ) : (
-                          <span style={{ color: '#aaa' }}>No Attachment</span>
-                        )}
-                      </StyledTableCell>
-                      <StyledTableCell>
-                        <IconButton size="small" onClick={() => { setEditData(r); setEditDialogOpen(true); }}>
-                          <EditIcon fontSize="small" />
-                        </IconButton>
-                      </StyledTableCell>
-                    </StyledTableRow>
-                  );
-                })}
+              {paginatedReclams.map((reclam) => (
+                <TableRow key={reclam.id} hover>
+                  <TableCell padding="checkbox">
+                    <Checkbox
+                      checked={selected.includes(reclam.id)}
+                      onChange={() => handleSelect(reclam.id)}
+                    />
+                  </TableCell>
+                  <TableCell>{reclam.id}</TableCell>
+                  <TableCell>{format(new Date(reclam.date_debut), 'dd MMM yyyy')}</TableCell>
+                  <TableCell>
+                    <span style={{ color: '#1976d2', cursor: 'pointer' }}>{reclam.title}</span>
+                  </TableCell>
+                  <TableCell>{reclam.user?.name || reclam.userId}</TableCell>
+                  <TableCell>{reclam.currentAgency || '-'}</TableCell>
+                  <TableCell>
+                    {reclam.attachment ? (
+                      <Button size="small" variant="outlined" color="primary" onClick={() => handlePreviewAttachment(reclam)}>
+                        View
+                      </Button>
+                    ) : (
+                      <span style={{ color: '#aaa' }}>No Attachment</span>
+                    )}
+                  </TableCell>
+                  <TableCell>
+                    <Chip
+                      label={reclam.status}
+                      color={reclam.status === 'resolved' ? 'success' : reclam.status === 'pending' ? 'warning' : 'error'}
+                      icon={reclam.status === 'resolved' ? <CheckCircle /> : reclam.status === 'pending' ? <ErrorIcon /> : <ErrorIcon />}
+                      variant="filled"
+                      style={{ color: '#fff' }}
+                    />
+                  </TableCell>
+                  <TableCell>
+                    <IconButton size="small" onClick={() => { setEditData(reclam); setEditDialogOpen(true); }}>
+                      <Edit fontSize="small" />
+                    </IconButton>
+                  </TableCell>
+                </TableRow>
+              ))}
             </TableBody>
           </MuiTable>
         </TableContainer>
+        <TablePagination
+          component="div"
+          count={filteredReclams.length}
+          page={page}
+          onPageChange={handleChangePage}
+          rowsPerPage={rowsPerPage}
+          rowsPerPageOptions={[5, 10, 20]}
+          onRowsPerPageChange={handleChangeRowsPerPage}
+        />
       </Paper>
 
       {/* Edit Reclamation Dialog */}

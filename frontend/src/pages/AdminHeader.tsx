@@ -275,7 +275,7 @@ const AdminHeader: React.FC<AdminHeaderProps> = ({
                         color: mode === 'dark' ? '#e0e0e0' : '#333',
                         mb: 0.2,
                         transition: 'color 0.18s',
-                      },
+                      }, 
                       '& .notif-id': {
                         fontWeight: 400,
                         fontSize: '0.86rem',

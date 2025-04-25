@@ -8,6 +8,7 @@ import EditIcon from '@mui/icons-material/Edit';
 import { format } from 'date-fns';
 import { ChartData } from '../types/dashboard';
 import { Reclam } from './types';
+import AttachmentPreviewDialog from './AttachmentPreviewDialog';
 
 // ATB Red Gradient Theme
 const COLORS = ['#e53935', '#ef5350', '#f44336', '#b71c1c'];
@@ -141,6 +142,17 @@ const AdminDashboardStats = ({ reclamations, onEdit }: AdminDashboardStatsProps)
   // Edit dialog state
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [editData, setEditData] = useState<Reclam | null>(null);
+
+  // Attachment preview dialog state
+  const [previewOpen, setPreviewOpen] = useState(false);
+  const [previewSrc, setPreviewSrc] = useState<string | null>(null);
+  const [previewIsImage, setPreviewIsImage] = useState(true);
+
+  const handlePreviewAttachment = (reclam: Reclam) => {
+    setPreviewSrc(`http://localhost:8000/uploads/${reclam.attachment}`);
+    setPreviewIsImage(!!reclam.attachment && /\.(jpg|jpeg|png|gif|bmp|webp)$/i.test(reclam.attachment));
+    setPreviewOpen(true);
+  };
 
   if (loading) {
     return (
@@ -308,6 +320,7 @@ const AdminDashboardStats = ({ reclamations, onEdit }: AdminDashboardStatsProps)
                   { id: 'priority', label: 'Priority' },
                   { id: 'date_debut', label: 'Start Date' },
                   { id: 'userId', label: 'User' },
+                  { id: 'attachment', label: 'Attachment' },
                   { id: 'actions', label: '' }
                 ].map((column) => (
                   <TableCell key={column.id}>
@@ -344,33 +357,55 @@ const AdminDashboardStats = ({ reclamations, onEdit }: AdminDashboardStatsProps)
                   }
                   return 0;
                 })
-                .map((r) => (
-                  <StyledTableRow id={`reclam-${r.id}`} key={r.id} sx={{ '&:hover': { bgcolor: 'action.hover' } }}>
-                    <StyledTableCell>{r.title}</StyledTableCell>
-                    <StyledTableCell>
-                      <Chip label={r.status} size="small" color={statusColorMap[r.status]} />
-                    </StyledTableCell>
-                    <StyledTableCell>
-                      <Chip label={r.priority} size="small" color={priorityColorMap[r.priority]} />
-                    </StyledTableCell>
-                    <StyledTableCell>
-                      {format(new Date(r.date_debut), 'dd MMM yyyy')}
-                    </StyledTableCell>
-                    <StyledTableCell>
-                      <Box display="flex" alignItems="center" gap={1}>
-                        <Avatar sx={{ width: 24, height: 24, fontSize: 14 }}>
-                          {r.user?.name?.charAt(0)}
-                        </Avatar>
-                        {r.user?.name}
-                      </Box>
-                    </StyledTableCell>
-                    <StyledTableCell>
-                      <IconButton size="small" onClick={() => { setEditData(r); setEditDialogOpen(true); }}>
-                        <EditIcon fontSize="small" />
-                      </IconButton>
-                    </StyledTableCell>
-                  </StyledTableRow>
-                ))}
+                .map((r) => {
+                  const isImage = r.attachment && /\.(jpg|jpeg|png|gif|bmp|webp)$/i.test(r.attachment);
+                  return (
+                    <StyledTableRow id={`reclam-${r.id}`} key={r.id} sx={{ '&:hover': { bgcolor: 'action.hover' } }}>
+                      <StyledTableCell>{r.title}</StyledTableCell>
+                      <StyledTableCell>
+                        <Chip label={r.status} size="small" color={statusColorMap[r.status]} />
+                      </StyledTableCell>
+                      <StyledTableCell>
+                        <Chip label={r.priority} size="small" color={priorityColorMap[r.priority]} />
+                      </StyledTableCell>
+                      <StyledTableCell>
+                        {format(new Date(r.date_debut), 'dd MMM yyyy')}
+                      </StyledTableCell>
+                      <StyledTableCell>
+                        <Box display="flex" alignItems="center" gap={1}>
+                          <Avatar sx={{ width: 24, height: 24, fontSize: 14 }}>
+                            {r.user?.name?.charAt(0)}
+                          </Avatar>
+                          {r.user?.name}
+                        </Box>
+                      </StyledTableCell>
+                      <StyledTableCell>
+                        {r.attachment ? (
+                          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minWidth: 100 }}>
+                            <Button size="small" variant="outlined" color="primary" onClick={() => handlePreviewAttachment(r)}>
+                              View
+                            </Button>
+                            {isImage && (
+                              <img
+                                src={`http://localhost:8000/uploads/${r.attachment}`}
+                                alt="attachment"
+                                style={{ maxWidth: 40, maxHeight: 40, borderRadius: 6, border: '1px solid #eee', marginLeft: 8 }}
+                                onError={e => { e.currentTarget.onerror = null; e.currentTarget.style.display = 'none'; }}
+                              />
+                            )}
+                          </Box>
+                        ) : (
+                          <span style={{ color: '#aaa' }}>No Attachment</span>
+                        )}
+                      </StyledTableCell>
+                      <StyledTableCell>
+                        <IconButton size="small" onClick={() => { setEditData(r); setEditDialogOpen(true); }}>
+                          <EditIcon fontSize="small" />
+                        </IconButton>
+                      </StyledTableCell>
+                    </StyledTableRow>
+                  );
+                })}
             </TableBody>
           </MuiTable>
         </TableContainer>
@@ -401,6 +436,14 @@ const AdminDashboardStats = ({ reclamations, onEdit }: AdminDashboardStatsProps)
           <Button onClick={async () => { if (editData) { await api.put(`/api/reclams/${editData.id}`, editData); setEditDialogOpen(false); window.location.reload(); } }} color="primary">Save</Button>
         </DialogActions>
       </Dialog>
+
+      {/* Attachment Preview Dialog */}
+      <AttachmentPreviewDialog
+        open={previewOpen}
+        onClose={() => setPreviewOpen(false)}
+        src={previewSrc || ''}
+        isImage={previewIsImage}
+      />
     </Box>
   );
 };

@@ -34,11 +34,12 @@ model Reclam {
   status      Status
   priority    Priority
   date_debut  DateTime
-  date_fin    DateTime?
+  attachment  String?
   region      Region    @relation(fields: [region_id], references: [id])
   region_id   Int
   user        User      @relation(fields: [user_id], references: [id])
   user_id     Int
+  currentAgency String? @db.VarChar(255)
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
 }

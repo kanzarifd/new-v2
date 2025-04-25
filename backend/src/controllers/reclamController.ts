@@ -1,6 +1,8 @@
 import { Request, Response } from 'express';
 import { PrismaClient } from '@prisma/client';
 import { AuthenticatedRequest } from '../middleware/auth';
+import upload from '../middleware/upload';
+import path from 'path';
 
 const prisma = new PrismaClient();
 
@@ -35,15 +37,23 @@ const isReclamWithUserAndRegion = (obj: any): obj is ReclamWithUserAndRegion => 
 
 export const addReclam = async (req: Request, res: Response) => {
   try {
+    // If file is uploaded, multer will add req.file
+    let attachment: string | undefined = undefined;
+    if (req.file) {
+      attachment = req.file.filename;
+    } else if (req.body.attachment) {
+      // fallback if sent as string
+      attachment = req.body.attachment;
+    }
     const {
       title,
       description,
       status,
       priority,
       date_debut,
-      date_fin,
       region_id,
       user_id,
+      currentAgency,
     } = req.body;
 
     // Validate required fields
@@ -70,9 +80,10 @@ export const addReclam = async (req: Request, res: Response) => {
         status,
         priority,
         date_debut: new Date(date_debut),
-        date_fin: date_fin ? new Date(date_fin) : undefined,
+        attachment,
         region: { connect: { id: Number(region_id) } },
         user: { connect: { id: Number(user_id) } },
+        currentAgency: currentAgency || undefined,
       },
     });
 
@@ -85,7 +96,12 @@ export const addReclam = async (req: Request, res: Response) => {
 
 export const getAllReclams = async (_: Request, res: Response) => {
   try {
-    const reclams = await prisma.reclam.findMany();
+    const reclams = await prisma.reclam.findMany({
+      include: {
+        user: true,
+        region: true
+      }
+    });
     return res.json(reclams);
   } catch (error: any) {
     return res.status(500).json({ error: error.message });
@@ -264,7 +280,17 @@ export const updateReclam = async (req: Request, res: Response) => {
       date_fin,
       regionId,
       userId,
+      currentAgency,
     } = req.body;
+
+    // If file is uploaded, multer will add req.file
+    let attachment: string | undefined = undefined;
+    if (req.file) {
+      attachment = req.file.filename;
+    } else if (req.body.attachment) {
+      // fallback if sent as string
+      attachment = req.body.attachment;
+    }
 
     // Validate required fields
     if (!title || !description || !status || !priority || !date_debut || !regionId || !userId) {
@@ -305,6 +331,8 @@ export const updateReclam = async (req: Request, res: Response) => {
         date_fin: date_fin ? new Date(date_fin) : undefined,
         region: { connect: { id: Number(regionId) } },
         user: { connect: { id: Number(userId) } },
+        currentAgency: currentAgency || undefined,
+        attachment,
       },
     });
 

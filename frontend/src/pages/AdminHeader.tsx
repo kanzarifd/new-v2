@@ -34,8 +34,10 @@ import {
   Email,
   MonetizationOn,
   Person,
-  Phone
+  Phone,
+  Notifications as NotificationsIcon,
 } from '@mui/icons-material';
+import axios from 'axios';
 import { useThemeContext } from '../contexts/ThemeContext';
 import api from '../config/api';
 import { format, parseISO, isValid } from 'date-fns';
@@ -62,6 +64,12 @@ const AdminHeader: React.FC<AdminHeaderProps> = ({
   const [adminInfo, setAdminInfo] = useState<any>(null);
   const [profileDialogOpen, setProfileDialogOpen] = useState(false);
 
+  // Notification system state
+  const [notificationAnchorEl, setNotificationAnchorEl] = useState<null | HTMLElement>(null);
+  const [notifications, setNotifications] = useState<{ id: number; title: string; user: any; user_id: number }[]>([]);
+  const [unreadCount, setUnreadCount] = useState(0);
+  const [userMap, setUserMap] = useState<{ [id: number]: string }>({});
+
   const handleMenu = (event: React.MouseEvent<HTMLElement>) => {
     setAnchorEl(event.currentTarget);
   };
@@ -69,6 +77,13 @@ const AdminHeader: React.FC<AdminHeaderProps> = ({
   const handleClose = () => {
     setAnchorEl(null);
   };
+
+  const handleNotificationClick = (event: React.MouseEvent<HTMLElement>) => {
+    setNotificationAnchorEl(event.currentTarget);
+    setUnreadCount(0);
+  };
+
+  const handleNotificationClose = () => setNotificationAnchorEl(null);
 
   // Fetch current user by ID stored in localStorage
   useEffect(() => {
@@ -84,6 +99,43 @@ const AdminHeader: React.FC<AdminHeaderProps> = ({
       api.get<any>(`/api/admins/${profile.id}`).then(res => setAdminInfo(res.data)).catch(console.error);
     }
   }, [profile]);
+
+  // Fetch all users for fallback name resolution
+  useEffect(() => {
+    axios.get('http://localhost:8000/api/users').then(res => {
+      if (Array.isArray(res.data)) {
+        const map: { [id: number]: string } = {};
+        res.data.forEach((u: any) => {
+          map[u.id] = u.name || u.full_name || u.email || `User ${u.id}`;
+        });
+        setUserMap(map);
+      }
+    });
+  }, []);
+
+  // Poll for notifications (reclams)
+  useEffect(() => {
+    const interval = setInterval(async () => {
+      try {
+        const res = await axios.get('http://localhost:8000/api/reclams?unreadForAgent=1');
+        if (Array.isArray(res.data) && res.data.length > 0) {
+          setNotifications(res.data.map((r: any) => ({
+            id: r.id,
+            title: r.title,
+            user: r.user && (r.user.name || r.user.email) ? r.user : null,
+            user_id: r.user_id
+          })));
+          setUnreadCount(res.data.length);
+        } else {
+          setNotifications([]);
+          setUnreadCount(0);
+        }
+      } catch (err) {
+        // fallback: don't update
+      }
+    }, 10000);
+    return () => clearInterval(interval);
+  }, []);
 
   return (
     <Box>
@@ -132,6 +184,124 @@ const AdminHeader: React.FC<AdminHeaderProps> = ({
           </Box>
           {/* Right Side */}
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+            <Tooltip title="Notifications">
+              <IconButton
+                color="inherit"
+                onClick={handleNotificationClick}
+                sx={{
+                  bgcolor: mode === 'dark' ? 'rgba(255,255,255,0.07)' : 'rgba(220,20,60,0.07)',
+                  borderRadius: 2,
+                  p: 1,
+                  transition: 'background 0.2s',
+                  '&:hover': {
+                    bgcolor: mode === 'dark' ? 'rgba(255,255,255,0.15)' : 'rgba(220,20,60,0.17)',
+                    transform: 'scale(1.07)',
+                  }
+                }}
+              >
+                <Badge badgeContent={unreadCount} color="error" overlap="circular">
+                  <NotificationsIcon sx={{ fontSize: 28, color: mode === 'dark' ? '#fff' : '#b71c1c' }} />
+                </Badge>
+              </IconButton>
+            </Tooltip>
+
+            <Menu
+              anchorEl={notificationAnchorEl}
+              open={Boolean(notificationAnchorEl)}
+              onClose={handleNotificationClose}
+              PaperProps={{
+                sx: {
+                  mt: 1.5,
+                  minWidth: 340,
+                  borderRadius: 3,
+                  boxShadow: 10,
+                  bgcolor: mode === 'dark' ? '#18181a' : '#fff',
+                  px: 0,
+                  py: 0,
+                  border: mode === 'dark' ? '1.5px solid #2d2d2d' : '1.5px solid #e53935',
+                  animation: 'bubble-pop 0.25s cubic-bezier(.4,2,.6,1)',
+                  overflow: 'hidden',
+                },
+              }}
+              MenuListProps={{ sx: { p: 0 } }}
+            >
+              {/* Header */}
+              <Box px={3} py={2} borderBottom="1.5px solid" borderColor={mode === 'dark' ? '#292929' : '#e53935'} bgcolor={mode === 'dark' ? '#1e1e1e' : '#fbe9e7'}>
+                <Typography variant="subtitle1" fontWeight={700} color={mode === 'dark' ? '#fff' : '#b71c1c'}>
+                  Notifications
+                </Typography>
+                <Typography variant="caption" color={mode === 'dark' ? '#e0e0e0' : '#b71c1c'} fontWeight={600}>
+                  You have {notifications.length} new updates
+                </Typography>
+              </Box>
+
+              {notifications.length === 0 ? (
+                <MenuItem disabled sx={{ py: 3, justifyContent: 'center', opacity: 0.7, bgcolor: mode === 'dark' ? '#18181a' : '#fff' }}>
+                  No new notifications
+                </MenuItem>
+              ) : (
+                notifications.map((reclam, idx) => (
+                  <MenuItem
+                    key={reclam.id}
+                    onClick={handleNotificationClose}
+                    sx={{
+                      alignItems: 'flex-start',
+                      px: 3,
+                      py: 2,
+                      borderBottom: idx !== notifications.length - 1 ? '1px solid' : 'none',
+                      borderColor: mode === 'dark' ? '#232323' : '#fbe9e7',
+                      bgcolor: mode === 'dark' ? '#18181a' : '#fff',
+                      color: mode === 'dark' ? '#fff' : '#b71c1c',
+                      fontWeight: 600,
+                      fontSize: '1rem',
+                      transition: 'background 0.18s, color 0.18s, transform 0.18s',
+                      '&:hover': {
+                        bgcolor: mode === 'dark' ? '#222' : '#ffebee',
+                        color: mode === 'dark' ? '#e53935' : '#b71c1c',
+                        transform: 'scale(1.02) translateX(3px)',
+                        boxShadow: mode === 'dark' ? '0 2px 8px #e5393533' : '0 2px 12px #e5393522',
+                      },
+                      '& .notif-title': {
+                        fontWeight: 700,
+                        letterSpacing: 0.2,
+                        fontSize: '1.04rem',
+                        color: mode === 'dark' ? '#fff' : '#b71c1c',
+                        mb: 0.3,
+                        transition: 'color 0.18s',
+                      },
+                      '& .notif-user': {
+                        fontWeight: 500,
+                        fontSize: '0.97rem',
+                        color: mode === 'dark' ? '#e0e0e0' : '#333',
+                        mb: 0.2,
+                        transition: 'color 0.18s',
+                      },
+                      '& .notif-id': {
+                        fontWeight: 400,
+                        fontSize: '0.86rem',
+                        color: mode === 'dark' ? '#bdbdbd' : '#adadad',
+                        transition: 'color 0.18s',
+                      }
+                    }}
+                  >
+                    <Box>
+                      <Typography className="notif-title">
+                        {reclam.title}
+                      </Typography>
+                      <Typography className="notif-user">
+                        User: {reclam.user && (reclam.user.name || reclam.user.email)
+                          ? (reclam.user.name || reclam.user.email)
+                          : (userMap[reclam.user_id] || `User ID: ${reclam.user_id}`)}
+                      </Typography>
+                      <Typography className="notif-id">
+                        ID: {reclam.id}
+                      </Typography>
+                    </Box>
+                  </MenuItem>
+                ))
+              )}
+            </Menu>
+
             <Tooltip title={mode === 'dark' ? 'Light mode' : 'Dark mode'}>
               <IconButton
                 onClick={toggleColorMode}

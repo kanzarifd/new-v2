@@ -67,9 +67,7 @@ const ReclamSearchBar: React.FC = () => {
             endAdornment={
               query && (
                 <InputAdornment position="end">
-                  <IconButton size="small" onClick={() => { setQuery(''); setResults([]); }}>
-                    <ClearIcon fontSize="small" />
-                  </IconButton>
+                 
                 </InputAdornment>
               )
             }
@@ -104,7 +102,7 @@ const ReclamSearchBar: React.FC = () => {
                   </Box>
                 </CardContent>
                 <CardActions>
-                  <Button size="small" onClick={() => { window.location.hash = `#reclam-${r.id}`; setResults([]); }}>View</Button>
+                  <Button size="small" onClick={() => { window.location.hash = `#reclam-${r.id}`; setResults([]); }}>Return</Button>
                   <IconButton size="small" color="error" onClick={() => { setDeleteTarget(r); setConfirmOpen(true); }}>
                     <DeleteIcon />
                   </IconButton>

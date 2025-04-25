@@ -61,6 +61,7 @@ import AdminDashboardStats from '../components/AdminDashboardStats';
 import { Reclam } from '../components/types';
 import AdminSidebar from './AdminSidebar';
 import AdminHeader from './AdminHeader';
+import AttachmentPreviewDialog from '../components/AttachmentPreviewDialog';
 
 import { styled } from '@mui/material/styles';
 
@@ -72,6 +73,7 @@ interface RegionFormData {
 
 interface Region extends RegionFormData {
   id: number;
+  attachment?: string;
 }
 
 const StyledCard = styled(Card)(({ theme }) => ({
@@ -187,6 +189,16 @@ const AdminDashboard = () => {
     medium: 'warning',
     low: 'success'
   };
+
+  // Attachment preview dialog state for regions
+  const [regionPreviewOpen, setRegionPreviewOpen] = useState(false);
+  const [regionPreviewSrc, setRegionPreviewSrc] = useState<string | null>(null);
+  const [regionPreviewIsImage, setRegionPreviewIsImage] = useState(true);
+
+  // Attachment preview dialog state for reclamations in selected region
+  const [attachmentPreviewOpen, setAttachmentPreviewOpen] = useState(false);
+  const [attachmentPreviewSrc, setAttachmentPreviewSrc] = useState<string | null>(null);
+  const [attachmentPreviewIsImage, setAttachmentPreviewIsImage] = useState(true);
 
   const handleLogout = () => {
     localStorage.clear();
@@ -397,6 +409,12 @@ const AdminDashboard = () => {
     }
   }, [location.hash]);
 
+  const handlePreviewAttachment = (reclam: any) => {
+    setAttachmentPreviewSrc(`http://localhost:8000/uploads/${reclam.attachment}`);
+    setAttachmentPreviewIsImage(!!reclam.attachment && /\.(jpg|jpeg|png|gif|bmp|webp)$/i.test(reclam.attachment));
+    setAttachmentPreviewOpen(true);
+  };
+
   return (
     <Box sx={{ display: 'flex', minHeight: '100vh', backgroundColor: theme.palette.background.default, color: theme.palette.text.primary }}>
       <AdminSidebar
@@ -525,6 +543,35 @@ const AdminDashboard = () => {
                         >
                           <EditIcon />
                         </IconButton>
+                        {/* Delete Region Button */}
+                        <IconButton
+                          onClick={async (e) => {
+                            e.stopPropagation();
+                            if (window.confirm('Are you sure you want to delete this region? This action cannot be undone.')) {
+                              try {
+                                await axios.delete(`http://localhost:8000/api/regions/${region.id}`);
+                                setRegions((prev) => prev.filter((r) => r.id !== region.id));
+                                enqueueSnackbar('Region deleted successfully!', { variant: 'success' });
+                              } catch (error) {
+                                enqueueSnackbar('Failed to delete region', { variant: 'error' });
+                              }
+                            }
+                          }}
+                          size="small"
+                          sx={{
+                            color: theme.palette.error.main,
+                            backgroundColor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.08)' : 'rgba(229,57,53,0.08)',
+                            borderRadius: 1,
+                            ml: 1,
+                            transition: 'background 0.2s, color 0.2s',
+                            '&:hover': {
+                              backgroundColor: theme.palette.error.main,
+                              color: theme.palette.error.contrastText,
+                            }
+                          }}
+                        >
+                          <DeleteIcon />
+                        </IconButton>
                       </ListItem>
                     </Card>
                   ))}
@@ -625,6 +672,7 @@ const AdminDashboard = () => {
                                 { id: 'priority', label: 'Priority' },
                                 { id: 'date_debut', label: 'Start Date' },
                                 { id: 'user', label: 'User' },
+                                { id: 'attachment', label: 'Attachment' },
                                 { id: 'actions', label: '' }
                               ].map((column) => (
                                 <TableCell key={column.id}>
@@ -660,47 +708,69 @@ const AdminDashboard = () => {
                                 }
                                 return 0;
                               })
-                              .map((reclam) => (
-                                <StyledTableRow id={`reclam-${reclam.id}`} key={reclam.id}
-                                  sx={{
-                                    '&:hover': {
-                                      bgcolor: 'action.hover',
-                                    },
-                                  }}
-                                >
-                                  <StyledTableCell>{reclam.title}</StyledTableCell>
-                                  <StyledTableCell>
-                                    <Chip 
-                                      label={reclam.status} 
-                                      size="small"
-                                      color={statusColorMap[reclam.status]}
-                                    />
-                                  </StyledTableCell>
-                                  <StyledTableCell>
-                                    <Chip 
-                                      label={reclam.priority} 
-                                      size="small"
-                                      color={priorityColorMap[reclam.priority]}
-                                    />
-                                  </StyledTableCell>
-                                  <StyledTableCell>
-                                    {format(new Date(reclam.date_debut), 'dd MMM yyyy')}
-                                  </StyledTableCell>
-                                  <StyledTableCell>
-                                    <Box display="flex" alignItems="center" gap={1}>
-                                      <Avatar sx={{ width: 24, height: 24, fontSize: 14 }}>
-                                        {reclam.user?.name?.charAt(0)}
-                                      </Avatar>
-                                      {reclam.user?.name}
-                                    </Box>
-                                  </StyledTableCell>
-                                  <StyledTableCell>
-                                    <IconButton size="small" onClick={() => handleOpen(reclam)}>
-                                      <EditIcon />
-                                    </IconButton>
-                                  </StyledTableCell>
-                                </StyledTableRow>
-                              ))}
+                              .map((reclam) => {
+                                const isImage = reclam.attachment && /\.(jpg|jpeg|png|gif|bmp|webp)$/i.test(reclam.attachment);
+                                return (
+                                  <StyledTableRow id={`reclam-${reclam.id}`} key={reclam.id}
+                                    sx={{
+                                      '&:hover': {
+                                        bgcolor: 'action.hover',
+                                      },
+                                    }}
+                                  >
+                                    <StyledTableCell>{reclam.title}</StyledTableCell>
+                                    <StyledTableCell>
+                                      <Chip 
+                                        label={reclam.status} 
+                                        size="small"
+                                        color={statusColorMap[reclam.status]}
+                                      />
+                                    </StyledTableCell>
+                                    <StyledTableCell>
+                                      <Chip 
+                                        label={reclam.priority} 
+                                        size="small"
+                                        color={priorityColorMap[reclam.priority]}
+                                      />
+                                    </StyledTableCell>
+                                    <StyledTableCell>
+                                      {format(new Date(reclam.date_debut), 'dd MMM yyyy')}
+                                    </StyledTableCell>
+                                    <StyledTableCell>
+                                      <Box display="flex" alignItems="center" gap={1}>
+                                        <Avatar sx={{ width: 24, height: 24, fontSize: 14 }}>
+                                          {reclam.user?.name?.charAt(0)}
+                                        </Avatar>
+                                        {reclam.user?.name}
+                                      </Box>
+                                    </StyledTableCell>
+                                    <StyledTableCell>
+                                      {reclam.attachment ? (
+                                        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minWidth: 100 }}>
+                                          <Button size="small" variant="outlined" color="primary" onClick={() => handlePreviewAttachment(reclam)}>
+                                            View
+                                          </Button>
+                                          {isImage && (
+                                            <img
+                                              src={`http://localhost:8000/uploads/${reclam.attachment}`}
+                                              alt="attachment"
+                                              style={{ maxWidth: 40, maxHeight: 40, borderRadius: 6, border: '1px solid #eee', marginLeft: 8 }}
+                                              onError={e => { e.currentTarget.onerror = null; e.currentTarget.style.display = 'none'; }}
+                                            />
+                                          )}
+                                        </Box>
+                                      ) : (
+                                        <span style={{ color: '#aaa' }}>No Attachment</span>
+                                      )}
+                                    </StyledTableCell>
+                                    <StyledTableCell>
+                                      <IconButton size="small" onClick={() => handleOpen(reclam)}>
+                                        <EditIcon />
+                                      </IconButton>
+                                    </StyledTableCell>
+                                  </StyledTableRow>
+                                );
+                              })}
                           </TableBody>
                         </Table>
                       </TableContainer>
@@ -778,58 +848,88 @@ const AdminDashboard = () => {
             <TableRow>
               <TableCell sx={{ fontWeight: 600 }}>Reclamation Title</TableCell>
               <TableCell sx={{ fontWeight: 600 }}>Detailed Description</TableCell>
-              <TableCell sx={{ fontWeight: 600 }}>Resolution Status</TableCell>
-              <TableCell sx={{ fontWeight: 600 }}>Initiation Date</TableCell>
-              <TableCell sx={{ fontWeight: 600 }}>Completion Date</TableCell>
+              <TableCell sx={{ fontWeight: 600 }}>Status</TableCell>
+              <TableCell sx={{ fontWeight: 600 }}>Priority</TableCell>
+              <TableCell sx={{ fontWeight: 600 }}>Created_At</TableCell>
+              <TableCell sx={{ fontWeight: 600 }}>User</TableCell>
+              <TableCell sx={{ fontWeight: 600 }}>Attachment</TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
             {filteredReclams.length > 0 ? (
-              filteredReclams.map((reclam) => (
-                <TableRow key={reclam.id} hover>
-                  <TableCell>{reclam.title}</TableCell>
-                  <TableCell sx={{ maxWidth: 300 }}>{reclam.description}</TableCell>
-                  <TableCell>
-                    <Chip 
-                      label={reclam.status} 
-                      color={
-                        reclam.status.toLowerCase() === 'resolved' ? 'success' : 
-                        reclam.status.toLowerCase() === 'pending' ? 'warning' : 'error'
-                      }
-                      size="small"
-                    />
-                  </TableCell>
-                  <TableCell>
-                    {new Date(reclam.date_debut).toLocaleDateString('en-US', {
-                      year: 'numeric',
-                      month: 'short',
-                      day: 'numeric'
-                    })}
-                  </TableCell>
-                  <TableCell>
-                    {reclam.date_fin ? 
-                      new Date(reclam.date_fin).toLocaleDateString('en-US', {
+              filteredReclams.map((reclam) => {
+                const isImage = reclam.attachment && /\.(jpg|jpeg|png|gif|bmp|webp)$/i.test(reclam.attachment);
+                return (
+                  <TableRow key={reclam.id} hover>
+                    <TableCell>{reclam.title}</TableCell>
+                    <TableCell sx={{ maxWidth: 300 }}>{reclam.description}</TableCell>
+                    <TableCell>
+                      <Chip 
+                        label={reclam.status} 
+                        color={
+                          reclam.status.toLowerCase() === 'resolved' ? 'success' : 
+                          reclam.status.toLowerCase() === 'pending' ? 'warning' : 'error'
+                        }
+                        size="small"
+                      />
+                    </TableCell>
+                    <TableCell>
+                      <Chip
+                        label={reclam.priority}
+                        color={
+                          reclam.priority === 'high' ? 'error' :
+                          reclam.priority === 'medium' ? 'warning' : 'success'
+                        }
+                        size="small"
+                      />
+                    </TableCell>
+                    <TableCell>
+                      {new Date(reclam.date_debut).toLocaleDateString('en-US', {
                         year: 'numeric',
                         month: 'short',
                         day: 'numeric'
-                      }) : 
-                      <Typography variant="body2" color="text.secondary">
-                        Ongoing
-                      </Typography>
-                    }
-                  </TableCell>
-                </TableRow>
-              ))
+                      })}
+                    </TableCell>
+                    <TableCell>
+                      <Box display="flex" alignItems="center" gap={1}>
+                        <Avatar sx={{ width: 24, height: 24, fontSize: 14 }}>
+                          {reclam.user?.name?.charAt(0)}
+                        </Avatar>
+                        {reclam.user?.name}
+                      </Box>
+                    </TableCell>
+                    <TableCell>
+                      {reclam.attachment ? (
+                        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minWidth: 100 }}>
+                          <Button size="small" variant="outlined" color="primary" onClick={() => handlePreviewAttachment(reclam)}>
+                            View
+                          </Button>
+                          {isImage && (
+                            <img
+                              src={`http://localhost:8000/uploads/${reclam.attachment}`}
+                              alt="attachment"
+                              style={{ maxWidth: 40, maxHeight: 40, borderRadius: 6, border: '1px solid #eee', marginLeft: 8 }}
+                              onError={e => { e.currentTarget.onerror = null; e.currentTarget.style.display = 'none'; }}
+                            />
+                          )}
+                        </Box>
+                      ) : (
+                        <span style={{ color: '#aaa' }}>No Attachment</span>
+                      )}
+                    </TableCell>
+                  </TableRow>
+                );
+              })
             ) : (
               <TableRow>
-                <TableCell colSpan={5} sx={{ py: 4 }}>
+                <TableCell colSpan={7} sx={{ py: 4 }}>
                   <Box sx={{ 
                     display: 'flex', 
                     flexDirection: 'column', 
                     alignItems: 'center',
                     color: 'text.secondary'
                   }}>
-                    <InfoOutlinedIcon sx={{ fontSize: 40, mb: 1 }} />
+                    <InfoOutlinedIcon sx={{ fontSize: 40, color: 'text.secondary' }} />
                     <Typography variant="body1">
                       No reclamations found for selected priority level
                     </Typography>
@@ -841,6 +941,13 @@ const AdminDashboard = () => {
         </Table>
       </TableContainer>
     )}
+    {/* Attachment Preview Dialog for priority-based reclamations */}
+    <AttachmentPreviewDialog
+      open={attachmentPreviewOpen}
+      onClose={() => setAttachmentPreviewOpen(false)}
+      src={attachmentPreviewSrc || ''}
+      isImage={attachmentPreviewIsImage}
+    />
   </Paper>
 )}
         
@@ -1055,6 +1162,14 @@ const AdminDashboard = () => {
             </DialogActions>
           </form>
         </Dialog>
+
+        {/* Attachment Preview Dialog for reclamations in selected region */}
+        <AttachmentPreviewDialog
+          open={attachmentPreviewOpen}
+          onClose={() => setAttachmentPreviewOpen(false)}
+          src={attachmentPreviewSrc || ''}
+          isImage={attachmentPreviewIsImage}
+        />
       </Box>
     </Box>
   );

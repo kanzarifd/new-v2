@@ -41,4 +41,5 @@ export interface Reclam {
   /** Nested objects from API */
   user?: { id: number; name: string };
   region?: { id: number; name: string };
+  attachment?: string;
 }

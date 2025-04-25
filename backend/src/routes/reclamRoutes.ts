@@ -10,6 +10,7 @@ import {
   updateReclam
 } from '../controllers/reclamController';
 import { PrismaClient } from '@prisma/client';
+import upload from '../middleware/upload';
 
 const prisma = new PrismaClient();
 
@@ -37,7 +38,7 @@ router.get('/priority/:priority', asyncHandler(async (req, res) => {
 }));
 
 // Add new reclam
-router.post('/', asyncHandler(async (req, res) => {
+router.post('/', upload.single('attachment'), asyncHandler(async (req, res) => {
   await addReclam(req, res);
 }));
 
@@ -47,7 +48,7 @@ router.get('/:id', asyncHandler(async (req, res) => {
 }));
 
 // Update reclam by ID
-router.put('/:id', asyncHandler(async (req, res) => {
+router.put('/:id', upload.single('attachment'), asyncHandler(async (req, res) => {
   await updateReclam(req, res);
 }));
 

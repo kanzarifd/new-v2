@@ -3,7 +3,7 @@ import { useTheme } from '@mui/material/styles';
 import { useAuth } from '../components/context/AuthContext';
 import FakeChatbot from '../components/FakeChatbot';
 import ChatbotPanel from '../components/ChatbotPanel'; // Adjust path
-
+import AttachmentPreviewDialog from '../components/AttachmentPreviewDialog';
 
 import axios from 'axios';
 import {
@@ -50,6 +50,8 @@ interface Reclam {
   date_fin: string;
   region_id: number;
   user_id: number;
+  currentAgency?: string;
+  attachment?: string;
 }
 
 interface Region {
@@ -66,6 +68,8 @@ interface FormValues {
   date_fin: string;
   regionId: number | null;
   userId: number | null;
+  attachment: File | null;
+  currentAgency?: string;
 }
 
 const UserDashboard = () => {
@@ -90,7 +94,14 @@ const UserDashboard = () => {
     date_fin: '',
     regionId: null,
     userId: user?.id ? Number(user.id) : null,
+    attachment: null,
+    currentAgency: '',
   });
+
+  const [previewOpen, setPreviewOpen] = useState(false);
+  const [previewSrc, setPreviewSrc] = useState<string | null>(null);
+  const [previewIsImage, setPreviewIsImage] = useState(false);
+  const [previewAlt, setPreviewAlt] = useState<string>('');
 
   const fetchReclams = async () => {
     try {
@@ -145,6 +156,8 @@ const UserDashboard = () => {
         date_fin: reclam.date_fin,
         regionId: reclam.region_id || null,
         userId: reclam.user_id || null,
+        attachment: null,
+        currentAgency: reclam.currentAgency || '',
       });
     } else {
       setFormData({
@@ -156,6 +169,8 @@ const UserDashboard = () => {
         date_fin: '',
         regionId: null,
         userId: user?.id ? Number(user.id) : null,
+        attachment: null,
+        currentAgency: '',
       });
     }
   };
@@ -172,6 +187,8 @@ const UserDashboard = () => {
       date_fin: '',
       regionId: null,
       userId: user?.id ? Number(user.id) : null,
+      attachment: null,
+      currentAgency: '',
     });
   };
 
@@ -188,13 +205,46 @@ const UserDashboard = () => {
       }
 
       // Format dates if they exist
-      const formattedData = {
-        ...formData,
-        date_debut: formData.date_debut ? new Date(formData.date_debut).toISOString() : undefined,
-        date_fin: formData.date_fin ? new Date(formData.date_fin).toISOString() : undefined,
-        region_id: formData.regionId,
-        user_id: formData.userId
-      };
+      let formattedData;
+      if (editingReclam) {
+        // For updates, use camelCase keys to match backend expectations
+        formattedData = {
+          title: formData.title,
+          description: formData.description,
+          status: formData.status,
+          priority: formData.priority,
+          date_debut: formData.date_debut,
+          date_fin: formData.date_fin,
+          regionId: formData.regionId,
+          userId: formData.userId,
+          currentAgency: formData.currentAgency,
+        };
+      } else {
+        // For creation, use snake_case keys
+        formattedData = {
+          title: formData.title,
+          description: formData.description,
+          status: formData.status,
+          priority: formData.priority,
+          date_debut: formData.date_debut,
+          date_fin: formData.date_fin,
+          region_id: formData.regionId,
+          user_id: formData.userId,
+          currentAgency: formData.currentAgency,
+        };
+      }
+
+      const formDataToSubmit = new FormData();
+      Object.entries(formattedData).forEach(([key, value]) => {
+        if (value !== undefined && value !== null && value !== '') {
+          formDataToSubmit.append(key, String(value));
+        }
+      });
+
+      // Only append attachment if a file is selected
+      if (formData.attachment) {
+        formDataToSubmit.append('attachment', formData.attachment);
+      }
 
       const url = editingReclam 
         ? `http://localhost:8000/api/reclams/${editingReclam.id}`
@@ -202,22 +252,34 @@ const UserDashboard = () => {
 
       const method = editingReclam ? 'PUT' : 'POST';
       
-      await axios({
-        url,
-        method,
-        headers: { Authorization: `Bearer ${token}` },
-        data: formattedData
-      });
+      try {
+        await axios({
+          url,
+          method,
+          headers: { 
+            Authorization: `Bearer ${token}`
+            // 'Content-Type' is set automatically by axios for FormData
+          },
+          data: formDataToSubmit
+        });
 
-      setSuccessMessage(editingReclam ? 'Reclamation updated successfully' : 'Reclamation created successfully');
-      setOpen(false);
-      fetchReclams();
-      
+        setSuccessMessage(editingReclam ? 'Reclamation updated successfully' : 'Reclamation created successfully');
+        setOpen(false);
+        fetchReclams();
+        
+      } catch (err) {
+        setError('Failed to save reclamation');
+        if (axios.isAxiosError(err) && err.response) {
+          console.error('Error saving reclamation:', err.response.data);
+        } else {
+          console.error('Error saving reclamation:', err);
+        }
+      } finally {
+        setLoading(false);
+      }
     } catch (err) {
       setError('Failed to save reclamation');
       console.error('Error saving reclamation:', err);
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -238,6 +300,17 @@ const UserDashboard = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handlePreviewAttachment = (reclam: Reclam) => {
+    if (!reclam.attachment) return;
+    const src = `http://localhost:8000/uploads/${reclam.attachment}`;
+    setPreviewSrc(src);
+    setPreviewAlt(reclam.title);
+    // Check if file is an image by extension
+    const isImage = /\.(jpg|jpeg|png|gif|bmp|webp)$/i.test(reclam.attachment);
+    setPreviewIsImage(isImage);
+    setPreviewOpen(true);
   };
 
   const [isMobile, setIsMobile] = useState(false);
@@ -357,8 +430,9 @@ const UserDashboard = () => {
                 <TableCell>Status</TableCell>
                 <TableCell>Priority</TableCell>
                 <TableCell>Start Date</TableCell>
-                <TableCell>End Date</TableCell>
                 <TableCell>Region</TableCell>
+                <TableCell>Attachment</TableCell>
+                <TableCell>Current Agency</TableCell>
                 <TableCell>Actions</TableCell>
               </TableRow>
             </TableHead>
@@ -379,10 +453,19 @@ const UserDashboard = () => {
                   </TableCell>
                   <TableCell>{reclam.priority}</TableCell>
                   <TableCell>{reclam.date_debut}</TableCell>
-                  <TableCell>{reclam.date_fin}</TableCell>
                   <TableCell>
                     {regions.find((r) => r.id === reclam.region_id)?.name || 'Unknown Region'}
                   </TableCell>
+                  <TableCell>
+                    {reclam.attachment ? (
+                      <Button size="small" variant="outlined" color="primary" onClick={() => handlePreviewAttachment(reclam)}>
+                        View
+                      </Button>
+                    ) : (
+                      <span>No Attachment</span>
+                    )}
+                  </TableCell>
+                  <TableCell>{reclam.currentAgency || '-'}</TableCell>
                   <TableCell>
                     <IconButton
                       onClick={() => handleOpen(reclam)}
@@ -481,7 +564,21 @@ const UserDashboard = () => {
                   <MenuItem value="">Select a region</MenuItem>
                   {regions.map((region) => (
                     <MenuItem key={region.id} value={region.id}>
-                      {region.name}
+                      <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                        <Chip
+                          label={region.name}
+                          size="small"
+                          sx={{
+                            backgroundColor: theme.palette.mode === 'dark'
+                              ? '#e0e0e0'
+                              : '#f3f6fa',
+                            color: '#111',
+                            fontWeight: 600,
+                            border: theme.palette.mode === 'dark' ? '1px solid #333' : '1px solid #ececec',
+                            mr: 1
+                          }}
+                        />
+                      </Box>
                     </MenuItem>
                   ))}
                 </Select>
@@ -499,21 +596,60 @@ const UserDashboard = () => {
                   renderInput={(params) => (
                     <TextField {...params} fullWidth required />
                   )} />
+
+                  
+                  <TextField
+                label="Current Agency"
+                value={formData.currentAgency}
+                onChange={e => setFormData(prev => ({ ...prev, currentAgency: e.target.value }))}
+                fullWidth
+                sx={{ mt: 2 }}
+              />
               </LocalizationProvider>
 
-              <LocalizationProvider dateAdapter={AdapterDateFns}>
-                <DatePicker
-                  label="End Date"
-                  value={formData.date_fin ? new Date(formData.date_fin) : null}
-                  onChange={(date) => {
-                    if (date instanceof Date) {
-                      setFormData((prev) => ({ ...prev, date_fin: format(date, 'yyyy-MM-dd') }));
-                    }
-                  } }
-                  renderInput={(params) => (
-                    <TextField {...params} fullWidth required />
-                  )} />
-              </LocalizationProvider>
+              {/* Attachment Upload */}
+              <Box>
+                <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 600 }}>
+                  Attachment (optional)
+                </Typography>
+                <Button
+                  variant="outlined"
+                  component="label"
+                  sx={{
+                    borderRadius: 2,
+                    borderColor: theme.palette.mode === 'dark' ? '#333' : '#bdbdbd',
+                    color: theme.palette.mode === 'dark' ? '#fff' : '#111',
+                    fontWeight: 500,
+                    textTransform: 'none',
+                    background: theme.palette.mode === 'dark' ? '#232526' : '#fafafa',
+                    '&:hover': {
+                      background: theme.palette.mode === 'dark' ? '#414345' : '#e0e0e0',
+                    },
+                  }}
+                  
+                >
+                  Upload Image
+                  <input
+                    type="file"
+                    accept="image/*"
+                    hidden
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) {
+                        setFormData((prev) => ({ ...prev, attachment: file }));
+                      }
+                    }}
+                  />
+                  
+                </Button>
+                {formData.attachment && (
+                  <Typography variant="caption" sx={{ ml: 2 }}>
+                    {formData.attachment.name}
+                  </Typography>
+                )}
+              </Box>
+
+              
             </Box>
           </DialogContent>
           <DialogActions sx={{ p: 2, justifyContent: 'flex-end' }}>
@@ -550,6 +686,14 @@ const UserDashboard = () => {
           {successMessage}
         </Alert>
       </Snackbar>
+
+      <AttachmentPreviewDialog
+        open={previewOpen}
+        onClose={() => setPreviewOpen(false)}
+        src={previewSrc || ''}
+        alt={previewAlt}
+        isImage={previewIsImage}
+      />
     </Box>
    
 

@@ -135,44 +135,7 @@ const AgentDashboard = () => {
       console.log('Fetching reclamations...');
       const response = await axios.get('http://localhost:8000/api/reclams');
       console.log('Reclamations fetched:', response.data);
-      
-      // Fetch additional data for each reclamation
-      const reclamsWithDetails = await Promise.all(
-        response.data.map(async (reclam: any) => {
-          console.log('Processing reclamation:', reclam.id);
-          
-          // Fetch region data
-          let region = null;
-          try {
-            const regionResponse = await axios.get(`http://localhost:8000/api/regions/${reclam.regionId}`);
-            region = regionResponse.data;
-            console.log('Region fetched:', region);
-          } catch (error) {
-            console.error(`Error fetching region ${reclam.regionId}:`, error);
-            region = { name: 'Unknown Region' };
-          }
-          
-          // Fetch user data
-          let user = null;
-          try {
-            const userResponse = await axios.get(`http://localhost:8000/api/users/${reclam.userId}`);
-            user = userResponse.data;
-            console.log('User fetched:', user);
-          } catch (error) {
-            console.error(`Error fetching user ${reclam.userId}:`, error);
-            user = { name: 'Unknown User', email: '', role: 'Unknown' };
-          }
-          
-          return {
-            ...reclam,
-            region,
-            user
-          };
-        })
-      );
-      
-      console.log('All reclamations processed:', reclamsWithDetails);
-      setReclams(reclamsWithDetails);
+      setReclams(response.data);
       setError(null);
     } catch (error: unknown) {
       console.error('Error in fetchReclams:', error);
@@ -778,12 +741,18 @@ const ReclamCard = ({ reclam, onEdit, onDelete }: {
         opacity: isDragging ? 0.5 : 1,
         cursor: 'move',
         transition: 'all 0.2s ease-in-out',
+        borderRadius: 3,
+        background: theme.palette.mode === 'dark'
+          ? 'linear-gradient(135deg, #232526 0%, #414345 100%)'
+          : 'linear-gradient(135deg, #fff 0%, #f3f6fa 100%)',
+        boxShadow: theme.palette.mode === 'dark' ? 8 : 2,
         '&:hover': {
-          transform: 'translateY(-2px)',
-          boxShadow: 3
-        }
+          transform: 'translateY(-2px) scale(1.01)',
+          boxShadow: theme.palette.mode === 'dark' ? 16 : 4,
+        },
+        border: theme.palette.mode === 'dark' ? '1px solid #333' : '1px solid #ececec',
       }}
-      elevation={1}
+      elevation={0}
     >
       <CardContent>
         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
@@ -811,12 +780,20 @@ const ReclamCard = ({ reclam, onEdit, onDelete }: {
               Region:
             </Typography>
             <Chip
-              label={reclam.region?.name || 'Unknown Region'}
+              label={
+                !reclam.region || !reclam.region.name || reclam.region.name === 'Unknown Region'
+                  ? 'Region Not Found'
+                  : reclam.region.name
+              }
               size="small"
               color={getRegionColor(reclam.region?.name || '')}
               sx={{
-                backgroundColor: getBackgroundColor(getRegionColor(reclam.region?.name || '')),
-                color: getTextColor(getRegionColor(reclam.region?.name || ''))
+                backgroundColor: theme.palette.mode === 'dark'
+                  ? `${getBackgroundColor(getRegionColor(reclam.region?.name || ''))} !important`
+                  : getBackgroundColor(getRegionColor(reclam.region?.name || '')),
+                color: '#111',
+                fontWeight: 600,
+                border: theme.palette.mode === 'dark' ? '1px solid #333' : '1px solid #ececec',
               }}
             />
           </Box>
@@ -829,21 +806,27 @@ const ReclamCard = ({ reclam, onEdit, onDelete }: {
         </Box>
 
         <Box sx={{ display: 'flex', alignItems: 'center', mt: 2 }}>
-          <Avatar sx={{ width: 32, height: 32 }}>
-            {reclam.user?.name ? reclam.user.name[0].toUpperCase() : 'U'}
+          <Avatar sx={{ width: 32, height: 32, bgcolor: theme.palette.mode === 'dark' ? '#3949ab' : '#e3f2fd', color: theme.palette.mode === 'dark' ? '#fff' : '#3949ab', fontWeight: 700 }}>
+            {reclam.user && reclam.user.email
+              ? reclam.user.email[0].toUpperCase()
+              : (reclam.user && reclam.user.name ? reclam.user.name[0].toUpperCase() : 'U')}
           </Avatar>
           <Box sx={{ ml: 1 }}>
             <Chip
-              label={reclam.user?.name || 'Unknown User'}
+              label={reclam.user && reclam.user.name && reclam.user.name !== 'Unknown User' ? reclam.user.name : (reclam.user?.name || 'User Not Found')}
               size="small"
               color={getUserColor(reclam.user?.role || '')}
               sx={{
-                backgroundColor: getBackgroundColor(getUserColor(reclam.user?.role || '')),
-                color: getTextColor(getUserColor(reclam.user?.role || ''))
+                backgroundColor: theme.palette.mode === 'dark'
+                  ? `${getBackgroundColor(getUserColor(reclam.user?.role || ''))} !important`
+                  : getBackgroundColor(getUserColor(reclam.user?.role || '')),
+                color: '#111',
+                fontWeight: 600,
+                border: theme.palette.mode === 'dark' ? '1px solid #333' : '1px solid #ececec',
               }}
             />
-            <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5 }}>
-              {reclam.user?.email || ''}
+            <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5, fontWeight: 500 }}>
+              {reclam.user && reclam.user.email && reclam.user.name !== 'Unknown User' ? reclam.user.email : ''}
             </Typography>
           </Box>
         </Box>

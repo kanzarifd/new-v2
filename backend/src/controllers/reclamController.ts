@@ -54,11 +54,15 @@ export const addReclam = async (req: Request, res: Response) => {
       region_id,
       user_id,
       currentAgency,
+      rejectionReason
     } = req.body;
 
     // Validate required fields
     if (!title || !description || !status || !priority || !date_debut || !region_id || !user_id) {
       return res.status(400).json({ error: 'All fields are required' });
+    }
+    if (status === 'rejected' && (!rejectionReason || rejectionReason.trim() === '')) {
+      return res.status(400).json({ error: 'Rejection reason is required when status is rejected' });
     }
 
     // Validate region
@@ -84,6 +88,7 @@ export const addReclam = async (req: Request, res: Response) => {
         region: { connect: { id: Number(region_id) } },
         user: { connect: { id: Number(user_id) } },
         currentAgency: currentAgency || undefined,
+        rejectionReason: status === 'rejected' ? rejectionReason : undefined
       },
     });
 
@@ -235,15 +240,18 @@ export const getReclamsByPriority = async (req: Request, res: Response) => {
 
 export const updateReclamStatus = async (req: Request, res: Response) => {
   const { id } = req.params;
-  const { status } = req.body;
+  const { status, rejectionReason } = req.body;
 
   // Define valid status values
-  const validStatuses = ['pending', 'in_progress', 'resolved', 'closed'];
+  const validStatuses = ['pending', 'in_progress', 'resolved', 'closed', 'rejected'];
 
   try {
     // Validate status
     if (!validStatuses.includes(status)) {
-      return res.status(400).json({ error: 'Invalid status. Must be one of: pending, in_progress, resolved, closed' });
+      return res.status(400).json({ error: 'Invalid status. Must be one of: pending, in_progress, resolved, closed, rejected' });
+    }
+    if (status === 'rejected' && (!rejectionReason || rejectionReason.trim() === '')) {
+      return res.status(400).json({ error: 'Rejection reason is required when status is rejected' });
     }
 
     // Check if reclam exists
@@ -255,10 +263,12 @@ export const updateReclamStatus = async (req: Request, res: Response) => {
       return res.status(404).json({ error: 'Reclamation not found' });
     }
 
-    // Update the status
+    // Update the status (and rejectionReason if rejected)
     const updatedReclam = await prisma.reclam.update({
       where: { id: Number(id) },
-      data: { status }
+      data: status === 'rejected'
+        ? { status, rejectionReason }
+        : { status, rejectionReason: undefined }
     });
 
     res.json(updatedReclam);

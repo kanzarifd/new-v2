@@ -48,7 +48,8 @@ import {
   Menu as MenuIcon,
   CalendarToday as CalendarTodayIcon,
   InfoOutlined as InfoOutlinedIcon,
-  People as PeopleIcon
+  People as PeopleIcon,
+  HighlightOff
 } from '@mui/icons-material';
 import {
   AdapterDateFns
@@ -208,6 +209,16 @@ const AdminDashboard = () => {
   // Edit user dialog state
   const [editUserDialogOpen, setEditUserDialogOpen] = useState(false);
   const [userToEdit, setUserToEdit] = useState<any>(null);
+
+  // Delete confirmation dialog state
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [deleteTargetUser, setDeleteTargetUser] = useState<any>(null);
+  const [deleteConfirmText, setDeleteConfirmText] = useState('');
+
+  // Delete confirmation dialog state for regions
+  const [deleteRegionDialogOpen, setDeleteRegionDialogOpen] = useState(false);
+  const [deleteTargetRegion, setDeleteTargetRegion] = useState<any>(null);
+  const [deleteRegionConfirmText, setDeleteRegionConfirmText] = useState('');
 
   const handleLogout = () => {
     localStorage.clear();
@@ -387,18 +398,25 @@ const AdminDashboard = () => {
     }
   }, [selectedUserRole, activeSection]);
 
-  const handleDeleteUser = async (userId: number) => {
-    if (!window.confirm('Are you sure you want to delete this user? This action cannot be undone.')) {
-      return;
-    }
+  const handleDeleteUser = (userId: number) => {
+    const user = usersByRole.find((u) => u.id === userId);
+    setDeleteTargetUser(user);
+    setDeleteDialogOpen(true);
+    setDeleteConfirmText('');
+  };
 
+  const confirmDeleteUser = async () => {
+    if (!deleteTargetUser) return;
+    setDeleteDialogOpen(false);
     try {
-      await axios.delete(`http://localhost:8000/api/users/${userId}`);
-      fetchUsersByRole(selectedUserRole);
+      await axios.delete(`http://localhost:8000/api/users/${deleteTargetUser.id}`);
       enqueueSnackbar('User deleted successfully', { variant: 'success' });
-    } catch (error: any) {
-      console.error('Error deleting user:', error);
-      enqueueSnackbar(error.response?.data?.message || 'Error deleting user', { variant: 'error' });
+      fetchUsersByRole(selectedUserRole);
+    } catch (err) {
+      enqueueSnackbar('Failed to delete user', { variant: 'error' });
+    } finally {
+      setDeleteTargetUser(null);
+      setDeleteConfirmText('');
     }
   };
 
@@ -458,6 +476,27 @@ const AdminDashboard = () => {
     setAttachmentPreviewSrc(`http://localhost:8000/uploads/${reclam.attachment}`);
     setAttachmentPreviewIsImage(!!reclam.attachment && /\.(jpg|jpeg|png|gif|bmp|webp)$/i.test(reclam.attachment));
     setAttachmentPreviewOpen(true);
+  };
+
+  const handleDeleteRegion = (region: Region) => {
+    setDeleteTargetRegion(region);
+    setDeleteRegionDialogOpen(true);
+    setDeleteRegionConfirmText('');
+  };
+
+  const confirmDeleteRegion = async () => {
+    if (!deleteTargetRegion) return;
+    setDeleteRegionDialogOpen(false);
+    try {
+      await axios.delete(`http://localhost:8000/api/regions/${deleteTargetRegion.id}`);
+      enqueueSnackbar('Region deleted successfully', { variant: 'success' });
+      fetchRegions();
+    } catch (err) {
+      enqueueSnackbar('Failed to delete region', { variant: 'error' });
+    } finally {
+      setDeleteTargetRegion(null);
+      setDeleteRegionConfirmText('');
+    }
   };
 
   return (
@@ -590,17 +629,9 @@ const AdminDashboard = () => {
                         </IconButton>
                         {/* Delete Region Button */}
                         <IconButton
-                          onClick={async (e) => {
+                          onClick={(e) => {
                             e.stopPropagation();
-                            if (window.confirm('Are you sure you want to delete this region? This action cannot be undone.')) {
-                              try {
-                                await axios.delete(`http://localhost:8000/api/regions/${region.id}`);
-                                setRegions((prev) => prev.filter((r) => r.id !== region.id));
-                                enqueueSnackbar('Region deleted successfully!', { variant: 'success' });
-                              } catch (error) {
-                                enqueueSnackbar('Failed to delete region', { variant: 'error' });
-                              }
-                            }
+                            handleDeleteRegion(region);
                           }}
                           size="small"
                           sx={{
@@ -1230,6 +1261,82 @@ const AdminDashboard = () => {
           src={attachmentPreviewSrc || ''}
           isImage={attachmentPreviewIsImage}
         />
+
+        {/* Delete Confirmation Dialog */}
+        <Dialog open={deleteDialogOpen} onClose={() => setDeleteDialogOpen(false)}>
+          <DialogTitle id="delete-user-dialog-title" sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <HighlightOff color="error" sx={{ fontSize: 32 }} />
+            Confirm Deletion
+          </DialogTitle>
+          <DialogContent id="delete-user-dialog-desc">
+            <Typography variant="body1" sx={{ fontWeight: 500, color: theme.palette.mode === 'dark' ? '#ff8a80' : '#b71c1c', mb: 1 }}>
+              Are you sure you want to delete user <b>{deleteTargetUser?.name}</b>?
+            </Typography>
+            <Typography variant="body2" color="text.secondary">
+              This action cannot be undone. The user and all their data will be permanently removed.
+            </Typography>
+            <TextField
+              autoFocus
+              fullWidth
+              label="Type DELETE to confirm"
+              variant="outlined"
+              value={deleteConfirmText}
+              onChange={e => setDeleteConfirmText(e.target.value)}
+              sx={{ mb: 1 }}
+              inputProps={{ style: { textTransform: 'uppercase', letterSpacing: '0.1em', fontWeight: 600 } }}
+            />
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={() => setDeleteDialogOpen(false)} color="inherit" variant="outlined" sx={{ fontWeight: 700, borderRadius: 2 }}>Cancel</Button>
+            <Button
+              onClick={confirmDeleteUser}
+              color="error"
+              variant="contained"
+              sx={{ fontWeight: 700, borderRadius: 2, boxShadow: 2 }}
+              disabled={deleteConfirmText.trim().toUpperCase() !== 'DELETE'}
+            >
+              Delete
+            </Button>
+          </DialogActions>
+        </Dialog>
+
+        {/* Delete Confirmation Dialog for Regions */}
+        <Dialog open={deleteRegionDialogOpen} onClose={() => setDeleteRegionDialogOpen(false)}>
+          <DialogTitle id="delete-region-dialog-title" sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <HighlightOff color="error" sx={{ fontSize: 32 }} />
+            Confirm Deletion
+          </DialogTitle>
+          <DialogContent id="delete-region-dialog-desc">
+            <Typography variant="body1" sx={{ fontWeight: 500, color: theme.palette.mode === 'dark' ? '#ff8a80' : '#b71c1c', mb: 1 }}>
+              Are you sure you want to delete region <b>{deleteTargetRegion?.name}</b>?
+            </Typography>
+            <Typography variant="body2" color="text.secondary">
+              This action cannot be undone. The region and all its data will be permanently removed.
+            </Typography>
+            <TextField
+              autoFocus
+              fullWidth
+              label="Type DELETE to confirm"
+              variant="outlined"
+              value={deleteRegionConfirmText}
+              onChange={e => setDeleteRegionConfirmText(e.target.value)}
+              sx={{ mb: 1 }}
+              inputProps={{ style: { textTransform: 'uppercase', letterSpacing: '0.1em', fontWeight: 600 } }}
+            />
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={() => setDeleteRegionDialogOpen(false)} color="inherit" variant="outlined" sx={{ fontWeight: 700, borderRadius: 2 }}>Cancel</Button>
+            <Button
+              onClick={confirmDeleteRegion}
+              color="error"
+              variant="contained"
+              sx={{ fontWeight: 700, borderRadius: 2, boxShadow: 2 }}
+              disabled={deleteRegionConfirmText.trim().toUpperCase() !== 'DELETE'}
+            >
+              Delete
+            </Button>
+          </DialogActions>
+        </Dialog>
       </Box>
     </Box>
   );

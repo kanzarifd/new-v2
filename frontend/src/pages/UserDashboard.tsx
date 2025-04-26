@@ -31,20 +31,21 @@ import {
   Alert,
   Snackbar,
   Chip, 
+  Tooltip,
+  Zoom
 } from '@mui/material';
-import { Edit as EditIcon, Delete as DeleteIcon, Add as AddIcon, Logout } from '@mui/icons-material';
+import { Edit as EditIcon, Delete as DeleteIcon, Add as AddIcon, Logout, Visibility as VisibilityIcon, HighlightOff, DoneAll, Autorenew, HourglassEmpty, CheckCircleOutline } from '@mui/icons-material';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import { format } from 'date-fns';
-import AdminHeader from './AdminHeader';
 import UserHeader from './UserHeader';
 
 interface Reclam {
   id: number;
   title: string;
   description: string;
-  status: 'pending' | 'in_progress' | 'resolved' | 'closed';
+  status: 'pending' | 'in_progress' | 'resolved' | 'closed' | 'rejected';
   priority: 'high' | 'medium' | 'low';
   date_debut: string;
   date_fin: string;
@@ -52,6 +53,7 @@ interface Reclam {
   user_id: number;
   currentAgency?: string;
   attachment?: string;
+  rejectionReason?: string;
 }
 
 interface Region {
@@ -62,7 +64,7 @@ interface Region {
 interface FormValues {
   title: string;
   description: string;
-  status: 'pending' | 'in_progress' | 'resolved' | 'closed';
+  status: 'pending' | 'in_progress' | 'resolved' | 'closed' | 'rejected';
   priority: 'high' | 'medium' | 'low';
   date_debut: string;
   date_fin: string;
@@ -70,6 +72,7 @@ interface FormValues {
   userId: number | null;
   attachment: File | null;
   currentAgency?: string;
+  rejectionReason?: string;
 }
 
 const UserDashboard = () => {
@@ -84,6 +87,7 @@ const UserDashboard = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [rejectedNotifOpen, setRejectedNotifOpen] = useState(false);
   const [editingReclam, setEditingReclam] = useState<Reclam | null>(null);
   const [formData, setFormData] = useState<FormValues>({
     title: '',
@@ -96,12 +100,19 @@ const UserDashboard = () => {
     userId: user?.id ? Number(user.id) : null,
     attachment: null,
     currentAgency: '',
+    rejectionReason: '',
   });
 
   const [previewOpen, setPreviewOpen] = useState(false);
   const [previewSrc, setPreviewSrc] = useState<string | null>(null);
   const [previewIsImage, setPreviewIsImage] = useState(false);
   const [previewAlt, setPreviewAlt] = useState<string>('');
+
+  const [openReasonDialogId, setOpenReasonDialogId] = useState<number | null>(null);
+
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [deleteTargetId, setDeleteTargetId] = useState<number | null>(null);
+  const [deleteConfirmText, setDeleteConfirmText] = useState('');
 
   const fetchReclams = async () => {
     try {
@@ -158,6 +169,7 @@ const UserDashboard = () => {
         userId: reclam.user_id || null,
         attachment: null,
         currentAgency: reclam.currentAgency || '',
+        rejectionReason: reclam.rejectionReason || '',
       });
     } else {
       setFormData({
@@ -171,6 +183,7 @@ const UserDashboard = () => {
         userId: user?.id ? Number(user.id) : null,
         attachment: null,
         currentAgency: '',
+        rejectionReason: '',
       });
     }
   };
@@ -189,12 +202,12 @@ const UserDashboard = () => {
       userId: user?.id ? Number(user.id) : null,
       attachment: null,
       currentAgency: '',
+      rejectionReason: '',
     });
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
     try {
       setLoading(true);
       
@@ -218,6 +231,7 @@ const UserDashboard = () => {
           regionId: formData.regionId,
           userId: formData.userId,
           currentAgency: formData.currentAgency,
+          rejectionReason: formData.rejectionReason,
         };
       } else {
         // For creation, use snake_case keys
@@ -231,6 +245,7 @@ const UserDashboard = () => {
           region_id: formData.regionId,
           user_id: formData.userId,
           currentAgency: formData.currentAgency,
+          rejectionReason: formData.rejectionReason,
         };
       }
 
@@ -263,10 +278,16 @@ const UserDashboard = () => {
           data: formDataToSubmit
         });
 
-        setSuccessMessage(editingReclam ? 'Reclamation updated successfully' : 'Reclamation created successfully');
         setOpen(false);
         fetchReclams();
-        
+        // Professional notification logic
+        if (formData.status === 'rejected') {
+          setRejectedNotifOpen(true);
+        } else if (editingReclam) {
+          setSuccessMessage('Reclamation updated successfully.');
+        } else {
+          setSuccessMessage('Reclamation created successfully.');
+        }
       } catch (err) {
         setError('Failed to save reclamation');
         if (axios.isAxiosError(err) && err.response) {
@@ -283,13 +304,19 @@ const UserDashboard = () => {
     }
   };
 
-  const handleDelete = async (id: number) => {
-    if (!window.confirm('Are you sure you want to delete this reclamation?')) return;
+  const handleDelete = (id: number) => {
+    setDeleteDialogOpen(true);
+    setDeleteTargetId(id);
+    setDeleteConfirmText('');
+  };
 
+  const confirmDelete = async () => {
+    if (!deleteTargetId) return;
+    setDeleteDialogOpen(false);
     try {
       setLoading(true);
       setError(null);
-      await axios.delete(`http://localhost:8000/api/reclams/${id}`, {
+      await axios.delete(`http://localhost:8000/api/reclams/${deleteTargetId}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       setSuccessMessage('Reclamation deleted successfully');
@@ -299,6 +326,8 @@ const UserDashboard = () => {
       console.error('Error deleting reclamation:', err);
     } finally {
       setLoading(false);
+      setDeleteTargetId(null);
+      setDeleteConfirmText('');
     }
   };
 
@@ -433,30 +462,192 @@ const UserDashboard = () => {
                 <TableCell>Region</TableCell>
                 <TableCell>Attachment</TableCell>
                 <TableCell>Current Agency</TableCell>
+                <TableCell>Rejection Reason</TableCell>
                 <TableCell>Actions</TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
               {reclams.map((reclam) => (
-                <TableRow key={reclam.id}>
-                  <TableCell>{reclam.title}</TableCell>
-                  <TableCell>
-                    <Chip
-                      label={reclam.status}
-                      size="small"
-                      sx={{
-                        px: 1,
-                        py: 0.5,
-                        borderRadius: 1,
-                        bgcolor: reclam.status === 'pending' ? 'success.light' : 'error.light',
-                      }} />
+                <TableRow
+                  key={reclam.id}
+                  sx={(() => {
+                    if (reclam.status !== 'rejected') return {};
+                    // Use the same background color for the entire row and all cells
+                    return {
+                      background:
+                        theme.palette.mode === 'dark'
+                          ? 'rgba(229,57,53,0.18)'
+                          : '#ffcdd2',
+                      borderLeft: '4px solid rgb(96, 14, 13)',
+                    };
+                  })()}
+                >
+                  <TableCell
+                    sx={reclam.status === 'rejected' ? {
+                      background: 'inherit',
+                      color: theme.palette.mode === 'dark' ? '#ff8a80' : '#b71c1c',
+                      fontWeight: 700,
+                      letterSpacing: '0.01em',
+                      fontFamily: 'inherit',
+                      fontSize: '1.08rem',
+                    } : {}}
+                  >
+                    {reclam.title}
                   </TableCell>
-                  <TableCell>{reclam.priority}</TableCell>
-                  <TableCell>{reclam.date_debut}</TableCell>
-                  <TableCell>
+                  <TableCell
+                    sx={{
+                      background: reclam.status === 'rejected' ? (theme.palette.mode === 'dark' ? 'rgba(229,57,53,0.13)' : '#ffcdd2') : 'transparent',
+                      color:
+                        reclam.status === 'rejected'
+                          ? theme.palette.mode === 'dark'
+                            ? '#ff5252'
+                            : '#b71c1c'
+                          : theme.palette.mode === 'dark'
+                          ? '#e0e0e0'
+                          : 'inherit',
+                      fontWeight: 700,
+                      letterSpacing: '0.01em',
+                      fontFamily: 'inherit',
+                      textTransform: 'capitalize',
+                      py: 1.2,
+                      px: 0,
+                      border: 'none',
+                      minWidth: 160,
+                      maxWidth: 220,
+                      verticalAlign: 'middle',
+                      transition: 'background 0.25s, color 0.25s',
+                    }}
+                  >
+                    <Tooltip
+                      title={(() => {
+                        switch (reclam.status) {
+                          case 'pending': return 'This request is pending and awaiting processing.';
+                          case 'in_progress': return 'This request is currently being processed.';
+                          case 'resolved': return 'This request has been resolved.';
+                          case 'closed': return 'This request is closed.';
+                          case 'rejected': return 'This request was rejected.';
+                          default: return reclam.status;
+                        }
+                      })()}
+                      placement="top"
+                      arrow
+                      TransitionComponent={Zoom}
+                    >
+                      <Box
+                        sx={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'flex-start',
+                          gap: 1.1,
+                          px: 1.2,
+                          py: 0.5,
+                          borderRadius: 2,
+                          boxShadow: reclam.status === 'rejected'
+                            ? theme.palette.mode === 'dark'
+                              ? '0 2px 12px #ff525233'
+                              : '0 2px 12px #b71c1c22'
+                            : theme.palette.mode === 'dark'
+                            ? '0 1px 8px #222b'
+                            : '0 1px 4px #ccc1',
+                          background:
+                            reclam.status === 'pending'
+                              ? (theme.palette.mode === 'dark' ? '#fffde7' : '#fffde7')
+                              : reclam.status === 'in_progress'
+                              ? (theme.palette.mode === 'dark' ? '#1565c0' : '#e3f2fd')
+                              : reclam.status === 'resolved'
+                              ? (theme.palette.mode === 'dark' ? '#1b5e20' : '#e8f5e9')
+                              : reclam.status === 'closed'
+                              ? (theme.palette.mode === 'dark' ? '#3e2723' : '#efebe9')
+                              : reclam.status === 'rejected'
+                              ? theme.palette.mode === 'dark'
+                                ? 'rgba(229,57,53,0.13)'
+                                : '#ffcdd2'
+                              : theme.palette.mode === 'dark'
+                              ? '#23272b'
+                              : '#f5f5f5',
+                          border: reclam.status === 'rejected'
+                            ? `1.5px solid ${theme.palette.mode === 'dark' ? '#ff5252' : '#b71c1c'}`
+                            : reclam.status === 'pending'
+                            ? `1.5px solid ${theme.palette.mode === 'dark' ? '#ffe082' : '#fbc02d'}`
+                            : reclam.status === 'in_progress'
+                            ? `1.5px solid ${theme.palette.mode === 'dark' ? '#1976d2' : '#1976d2'}`
+                            : reclam.status === 'resolved'
+                            ? `1.5px solid ${theme.palette.mode === 'dark' ? '#66bb6a' : '#388e3c'}`
+                            : reclam.status === 'closed'
+                            ? `1.5px solid ${theme.palette.mode === 'dark' ? '#8d6e63' : '#6d4c41'}`
+                            : theme.palette.mode === 'dark'
+                            ? '1.5px solid #444'
+                            : '1.5px solid #e0e0e0',
+                          transition: 'all 0.3s cubic-bezier(.4,2,.6,1)',
+                          boxSizing: 'border-box',
+                          cursor: 'pointer',
+                          '&:hover': {
+                            boxShadow: reclam.status === 'rejected'
+                              ? theme.palette.mode === 'dark'
+                                ? '0 4px 24px #ff5252cc'
+                                : '0 4px 24px #b71c1ccc'
+                              : theme.palette.mode === 'dark'
+                              ? '0 4px 16px #222d'
+                              : '0 4px 16px #aaa6',
+                            transform: 'scale(1.04)',
+                          },
+                          animation: 'fadeInStatus 0.8s cubic-bezier(.4,2,.6,1)',
+                          '@keyframes fadeInStatus': {
+                            from: { opacity: 0, transform: 'translateY(12px) scale(0.95)' },
+                            to: { opacity: 1, transform: 'translateY(0) scale(1)' },
+                          },
+                        }}
+                      >
+                        {(() => {
+                          switch (reclam.status) {
+                            case 'pending':
+                              return <HourglassEmpty fontSize="small" sx={{ color: theme.palette.mode === 'dark' ? '#ffe082' : '#fbc02d', mr: 0.5, animation: 'spin 1.5s linear infinite' }} titleAccess="Pending" />;
+                            case 'in_progress':
+                              return <Autorenew fontSize="small" sx={{ color: theme.palette.mode === 'dark' ? '#90caf9' : '#1976d2', mr: 0.5, animation: 'spin 1.2s linear infinite' }} titleAccess="In Progress" />;
+                            case 'resolved':
+                              return <DoneAll fontSize="small" sx={{ color: theme.palette.mode === 'dark' ? '#66bb6a' : '#388e3c', mr: 0.5, animation: 'popIn 0.7s cubic-bezier(.4,2,.6,1)' }} titleAccess="Resolved" />;
+                            case 'closed':
+                              return <CheckCircleOutline fontSize="small" sx={{ color: theme.palette.mode === 'dark' ? '#8d6e63' : '#6d4c41', mr: 0.5, animation: 'popIn 0.7s cubic-bezier(.4,2,.6,1)' }} titleAccess="Closed" />;
+                            case 'rejected':
+                              return <HighlightOff fontSize="small" sx={{ color: theme.palette.mode === 'dark' ? '#ff5252' : '#b71c1c', mr: 0.5, animation: 'shake 0.7s cubic-bezier(.36,.07,.19,.97) both' }} titleAccess="Rejected" />;
+                            default:
+                              return null;
+                          }
+                        })()}
+                        <Typography
+                          variant="subtitle2"
+                          sx={{
+                            fontWeight: 800,
+                            fontSize: '1.08rem',
+                            color:
+                              reclam.status === 'rejected'
+                                ? theme.palette.mode === 'dark'
+                                  ? '#ff5252'
+                                  : '#b71c1c'
+                                : theme.palette.mode === 'dark'
+                                ? '#e0e0e0'
+                                : 'inherit',
+                            textTransform: 'capitalize',
+                            letterSpacing: '0.02em',
+                            fontFamily: 'inherit',
+                            userSelect: 'text',
+                            whiteSpace: 'nowrap',
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
+                            maxWidth: 120,
+                          }}
+                        >
+                          {reclam.status.replace('_', ' ')}
+                        </Typography>
+                      </Box>
+                    </Tooltip>
+                  </TableCell>
+                  <TableCell sx={reclam.status === 'rejected' ? {background: 'inherit', color: theme.palette.mode === 'dark' ? '#ff8a80' : '#b71c1c', fontWeight: 700} : {}}>{reclam.priority}</TableCell>
+                  <TableCell sx={reclam.status === 'rejected' ? {background: 'inherit', color: theme.palette.mode === 'dark' ? '#ff8a80' : '#b71c1c', fontWeight: 700} : {}}>{reclam.date_debut}</TableCell>
+                  <TableCell sx={reclam.status === 'rejected' ? {background: 'inherit', color: theme.palette.mode === 'dark' ? '#ff8a80' : '#b71c1c', fontWeight: 700} : {}}>
                     {regions.find((r) => r.id === reclam.region_id)?.name || 'Unknown Region'}
                   </TableCell>
-                  <TableCell>
+                  <TableCell sx={reclam.status === 'rejected' ? {background: 'inherit', color: theme.palette.mode === 'dark' ? '#ff8a80' : '#b71c1c', fontWeight: 700} : {}}>
                     {reclam.attachment ? (
                       <Button size="small" variant="outlined" color="primary" onClick={() => handlePreviewAttachment(reclam)}>
                         View
@@ -465,8 +656,59 @@ const UserDashboard = () => {
                       <span>No Attachment</span>
                     )}
                   </TableCell>
-                  <TableCell>{reclam.currentAgency || '-'}</TableCell>
-                  <TableCell>
+                  <TableCell sx={reclam.status === 'rejected' ? {background: 'inherit', color: theme.palette.mode === 'dark' ? '#ff8a80' : '#b71c1c', fontWeight: 700} : {}}>{reclam.currentAgency || '-'}</TableCell>
+                  <TableCell sx={reclam.status === 'rejected' ? {background: 'inherit', color: theme.palette.mode === 'dark' ? '#ff8a80' : '#b71c1c', fontWeight: 700} : {}}>
+                    {reclam.status === 'rejected' && reclam.rejectionReason ? (
+                      <>
+                        <span
+                          style={{
+                            color: theme.palette.mode === 'dark' ? '#ff8a80' : '#e53935',
+                            fontWeight: 600,
+                            fontSize: '1rem',
+                            letterSpacing: '0.01em',
+                            fontFamily: 'inherit',
+                            textShadow: theme.palette.mode === 'dark'
+                              ? '0 1px 4px #000, 0 1px 2px #b71c1c44'
+                              : '0 1px 3px rgba(229,57,53,0.07)',
+                            padding: 0,
+                            display: 'inline-block',
+                            maxWidth: 140,
+                            whiteSpace: 'nowrap',
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
+                            verticalAlign: 'middle',
+                          }}
+                          title={reclam.rejectionReason}
+                        >
+                          {reclam.rejectionReason}
+                        </span>
+                        {reclam.rejectionReason.length > 30 && (
+                          <IconButton
+                            aria-label="See more"
+                            size="small"
+                            sx={{ ml: 1, verticalAlign: 'middle' }}
+                            onClick={() => setOpenReasonDialogId(reclam.id)}
+                          >
+                            <VisibilityIcon fontSize="small" />
+                          </IconButton>
+                        )}
+                        <Dialog open={openReasonDialogId === reclam.id} onClose={() => setOpenReasonDialogId(null)}>
+                          <DialogTitle>Rejection Reason</DialogTitle>
+                          <DialogContent>
+                            <Typography variant="body1" sx={{ whiteSpace: 'pre-line', color: theme.palette.mode === 'dark' ? '#ff8a80' : '#b71c1c' }}>
+                              {reclam.rejectionReason}
+                            </Typography>
+                          </DialogContent>
+                          <DialogActions>
+                            <Button onClick={() => setOpenReasonDialogId(null)} color="primary" autoFocus>Close</Button>
+                          </DialogActions>
+                        </Dialog>
+                      </>
+                    ) : (
+                      <span style={{ color: '#888', fontStyle: 'italic' }}>-</span>
+                    )}
+                  </TableCell>
+                  <TableCell sx={reclam.status === 'rejected' ? {background: 'inherit'} : {}}>
                     <IconButton
                       onClick={() => handleOpen(reclam)}
                       color="primary"
@@ -536,6 +778,10 @@ const UserDashboard = () => {
                   disabled={!editingReclam}
                 >
                   <MenuItem value="pending">Pending</MenuItem>
+                  <MenuItem value="in_progress">In Progress</MenuItem>
+                  <MenuItem value="resolved">Resolved</MenuItem>
+                  <MenuItem value="closed">Closed</MenuItem>
+                  <MenuItem value="rejected">Rejected</MenuItem>
                 </Select>
               </FormControl>
 
@@ -649,7 +895,15 @@ const UserDashboard = () => {
                 )}
               </Box>
 
-              
+              {formData.status === 'rejected' && false && (
+                <TextField
+                  label="Rejection Reason"
+                  value={formData.rejectionReason}
+                  onChange={e => setFormData(prev => ({ ...prev, rejectionReason: e.target.value }))}
+                  fullWidth
+                  sx={{ mt: 2 }}
+                />
+              )}
             </Box>
           </DialogContent>
           <DialogActions sx={{ p: 2, justifyContent: 'flex-end' }}>
@@ -677,13 +931,75 @@ const UserDashboard = () => {
         </form>
       </Dialog>
 
+      <Dialog
+        open={deleteDialogOpen}
+        onClose={() => setDeleteDialogOpen(false)}
+        aria-labelledby="delete-reclam-dialog-title"
+        aria-describedby="delete-reclam-dialog-desc"
+        PaperProps={{
+          sx: {
+            borderRadius: 3,
+            p: 1,
+            minWidth: 350,
+            bgcolor: theme.palette.mode === 'dark' ? '#212121' : '#fff',
+            boxShadow: 8,
+          },
+        }}
+      >
+        <DialogTitle id="delete-reclam-dialog-title" sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          <HighlightOff color="error" sx={{ fontSize: 32 }} />
+          Confirm Deletion
+        </DialogTitle>
+        <DialogContent id="delete-reclam-dialog-desc">
+          <Typography variant="body1" sx={{ fontWeight: 500, color: theme.palette.mode === 'dark' ? '#ff8a80' : '#b71c1c', mb: 1 }}>
+            Are you sure you want to delete this reclamation?
+          </Typography>
+          <Typography variant="body2" color="text.secondary">
+            This action cannot be undone. The reclamation and its data will be permanently removed.
+          </Typography>
+          <TextField
+            autoFocus
+            fullWidth
+            label="Type DELETE to confirm"
+            variant="outlined"
+            value={deleteConfirmText}
+            onChange={e => setDeleteConfirmText(e.target.value)}
+            sx={{ mb: 1 }}
+            inputProps={{ style: { textTransform: 'uppercase', letterSpacing: '0.1em', fontWeight: 600 } }}
+          />
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setDeleteDialogOpen(false)} color="inherit" variant="outlined" sx={{ fontWeight: 700, borderRadius: 2 }}>Cancel</Button>
+          <Button
+            onClick={confirmDelete}
+            color="error"
+            variant="contained"
+            sx={{ fontWeight: 700, borderRadius: 2, boxShadow: 2 }}
+            disabled={deleteConfirmText.trim().toUpperCase() !== 'DELETE'}
+          >
+            Delete
+          </Button>
+        </DialogActions>
+      </Dialog>
+
       <Snackbar
         open={!!successMessage}
-        autoHideDuration={6000}
+        autoHideDuration={4000}
         onClose={() => setSuccessMessage(null)}
+        anchorOrigin={{ vertical: 'top', horizontal: 'right' }}
       >
-        <Alert onClose={() => setSuccessMessage(null)} severity="success">
+        <Alert onClose={() => setSuccessMessage(null)} severity="success" sx={{ fontWeight: 'bold', fontSize: '1.06rem', bgcolor: theme.palette.mode === 'dark' ? '#263238' : '#e8f5e9', color: theme.palette.mode === 'dark' ? '#fff' : '#388e3c', boxShadow: 3 }}>
           {successMessage}
+        </Alert>
+      </Snackbar>
+      <Snackbar
+        open={rejectedNotifOpen}
+        autoHideDuration={7000}
+        onClose={() => setRejectedNotifOpen(false)}
+        anchorOrigin={{ vertical: 'top', horizontal: 'right' }}
+      >
+        <Alert onClose={() => setRejectedNotifOpen(false)} severity="error" icon={<HighlightOff sx={{ color: '#e53935' }} />} sx={{ fontWeight: 'bold', fontSize: '1.07rem', bgcolor: theme.palette.mode === 'dark' ? '#2d090a' : '#ffcdd2', color: theme.palette.mode === 'dark' ? '#ff5252' : '#b71c1c', boxShadow: 3 }}>
+          Reclamation has been <b>rejected</b>. Please check the reason provided.
         </Alert>
       </Snackbar>
 

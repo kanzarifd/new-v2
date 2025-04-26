@@ -347,16 +347,38 @@ const AdminDashboardStats = ({ reclamations, onEdit }: AdminDashboardStatsProps)
       </Grid>
 
       <Paper sx={{ mt: 4, p: 2 }}>
-        <Box display="flex" justifyContent="space-between" alignItems="center" p={2}>
-          <Typography variant="h6">Recent Reclamations</Typography>
-          <TextField
-            variant="standard"
-            placeholder="Search..."
-            value={search}
-            onChange={handleSearch}
-            InputProps={{ startAdornment: <Search /> }}
-          />
+        <Box display="flex" justifyContent="center" alignItems="center" p={2}>
+          <Typography
+            variant="h6"
+            sx={{
+              fontWeight: 'bold',
+              color: '#b71c1c',
+              letterSpacing: 1,
+              fontSize: '1.5rem',
+              cursor: 'pointer',
+              transition: 'transform 0.2s, box-shadow 0.2s, color 0.2s',
+              '&:hover': {
+                color: '#e53935',
+                transform: 'scale(1.04)',
+                boxShadow: 3,
+              },
+              borderRadius: 2,
+              px: 3,
+              py: 1,
+              background: 'rgba(229, 57, 53, 0.07)',
+            }}
+            align="center"
+          >
+            Recent Reclamations
+          </Typography>
         </Box>
+        <TextField
+          variant="standard"
+          placeholder="Search..."
+          value={search}
+          onChange={handleSearch}
+          InputProps={{ startAdornment: <Search /> }}
+        />
         <TableContainer>
           <MuiTable>
             <TableHead>

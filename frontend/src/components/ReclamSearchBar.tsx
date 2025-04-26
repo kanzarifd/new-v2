@@ -114,13 +114,38 @@ const ReclamSearchBar: React.FC = () => {
       )}
       {/* Confirm Deletion Dialog */}
       <Dialog open={confirmOpen} onClose={() => setConfirmOpen(false)}>
-        <DialogTitle>Confirm Deletion</DialogTitle>
-        <DialogContent>
-          <DialogContentText>Are you sure you want to delete "{deleteTarget?.title}"?</DialogContentText>
+        <DialogTitle sx={{
+          display: 'flex', alignItems: 'center', gap: 1, fontWeight: 'bold', color: '#b71c1c',
+          background: 'linear-gradient(90deg, #fff, #ffeaea 80%)',
+          borderBottom: '1px solid #e53935',
+          letterSpacing: 1,
+        }}>
+          <Box display="flex" alignItems="center" gap={1}>
+            <DeleteIcon sx={{ color: '#e53935', fontSize: 30 }} />
+            Confirm Deletion
+          </Box>
+        </DialogTitle>
+        <DialogContent sx={{
+          py: 3, px: 4, textAlign: 'center',
+          background: 'linear-gradient(90deg, #fff, #ffeaea 80%)',
+        }}>
+          <Typography variant="h6" sx={{ color: '#b71c1c', fontWeight: 'bold', mb: 1 }}>
+            Are you sure you want to delete
+          </Typography>
+          <Typography variant="subtitle1" sx={{ color: '#e53935', fontWeight: 500 }}>
+            "{deleteTarget?.title}"
+          </Typography>
+          <Typography variant="body2" sx={{ color: '#888', mt: 2 }}>
+            This action cannot be undone.
+          </Typography>
         </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setConfirmOpen(false)}>Cancel</Button>
-          <Button color="error" onClick={confirmDelete}>Delete</Button>
+        <DialogActions sx={{ justifyContent: 'center', pb: 2 }}>
+          <Button onClick={() => setConfirmOpen(false)} variant="outlined" color="inherit" sx={{ borderColor: '#b71c1c', color: '#b71c1c', fontWeight: 500, px: 3, '&:hover': { background: '#ffeaea', borderColor: '#e53935', color: '#e53935' } }}>
+            Cancel
+          </Button>
+          <Button color="error" onClick={confirmDelete} variant="contained" sx={{ fontWeight: 600, px: 3, boxShadow: 2, background: 'linear-gradient(90deg, #e53935 60%, #b71c1c 100%)', color: '#fff', '&:hover': { background: '#b71c1c' } }}>
+            Delete
+          </Button>
         </DialogActions>
       </Dialog>
     </Box>

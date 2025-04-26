@@ -39,12 +39,13 @@ import { DndProvider, useDrag, useDrop } from 'react-dnd';
 import { HTML5Backend } from 'react-dnd-html5-backend';
 import { format } from 'date-fns';
 import AgentHeader from './AgentHeader';
+import AgentRecentReclamsTable from '../components/AgentRecentReclamsTable';
 
 interface Reclamation {
   id: number;
   title: string;
   description: string;
-  status: 'pending' | 'in_progress' | 'resolved' | 'closed';
+  status: 'pending' | 'in_progress' | 'rejected' | 'closed';
   priority: 'high' | 'medium' | 'low';
   regionId: number;
   region: {
@@ -59,6 +60,7 @@ interface Reclamation {
   };
   createdAt: string;
   updatedAt: string;
+  rejectionReason?: string;
 }
 
 const AgentDashboard = () => {
@@ -104,11 +106,11 @@ const AgentDashboard = () => {
       text: '#D97706',
       border: '#B45309'
     },
-    resolved: {
-      background: '#059669',
-      hover: '#047857',
-      text: '#059669',
-      border: '#047857'
+    rejected: {
+      background: '#FF0000',
+      hover: '#FF3737',
+      text: '#FF0000',
+      border: '#FF3737'
     },
     closed: {
       background: '#000000',
@@ -160,13 +162,46 @@ const AgentDashboard = () => {
     return reclams.filter(r => r.status === status).length;
   };
 
+  const [rejectionDialogOpen, setRejectionDialogOpen] = useState(false);
+  const [rejectionReasonValue, setRejectionReasonValue] = useState('');
+  const [pendingRejectionId, setPendingRejectionId] = useState<number|null>(null);
+
   const handleStatusChange = async (id: number, status: string) => {
+    if (status === 'rejected') {
+      setPendingRejectionId(id);
+      setRejectionReasonValue('');
+      setRejectionDialogOpen(true);
+      return;
+    }
     try {
       await axios.put(`http://localhost:8000/api/reclams/status/${id}`, { status });
       await fetchReclams();
     } catch (err) {
       setError('Failed to update status');
     }
+  };
+
+  const handleRejectionDialogSubmit = async () => {
+    if (!rejectionReasonValue.trim()) {
+      setError('Rejection reason is required.');
+      return;
+    }
+    try {
+      await axios.put(`http://localhost:8000/api/reclams/status/${pendingRejectionId}`, { status: 'rejected', rejectionReason: rejectionReasonValue });
+      setRejectionDialogOpen(false);
+      setPendingRejectionId(null);
+      setRejectionReasonValue('');
+      await fetchReclams();
+    } catch (err) {
+      setError('Failed to update status');
+      setRejectionDialogOpen(false);
+    }
+  };
+
+  const handleRejectionDialogClose = () => {
+    setRejectionDialogOpen(false);
+    setPendingRejectionId(null);
+    setRejectionReasonValue('');
   };
 
   const handleEdit = async (reclam: Reclamation) => {
@@ -228,6 +263,24 @@ const AgentDashboard = () => {
     logout();
     navigate('/login');
   };
+
+  // Wrap the handleEdit function so it matches the expected signature for AgentRecentReclamsTable
+  const handleEditTable = (reclam: any) => {
+    handleEdit(reclam);
+  };
+
+  // Convert Reclamation[] to Reclam[] for AgentRecentReclamsTable
+  const reclamsForTable = reclams.map((r: any) => ({
+    ...r,
+    date_debut: r.date_debut || r.createdAt || '',
+    date_fin: r.date_fin || r.updatedAt || '',
+    priority: r.priority || 'medium',
+    status: r.status || 'pending',
+    region: r.region ? { id: r.region.id || 0, name: r.region.name || '' } : undefined,
+    user: r.user ? { id: r.user.id || 0, name: r.user.name || '' } : undefined,
+    attachment: r.attachment,
+    currentAgency: r.currentAgency || ''
+  }));
 
   return (
     <DndProvider backend={HTML5Backend}>
@@ -401,7 +454,7 @@ const AgentDashboard = () => {
                     fontWeight: 'bold',
                   }}
                 >
-                  {getStatusCount('resolved')}
+                  {getStatusCount('rejected')}
                 </Typography>
                 <Typography
                   variant="subtitle2"
@@ -410,7 +463,7 @@ const AgentDashboard = () => {
                     fontWeight: 'bold',
                   }}
                 >
-                  Resolved
+                  Rejected
                 </Typography>
               </Box>
             </Paper>
@@ -475,34 +528,39 @@ const AgentDashboard = () => {
         {/* Kanban Board */}
         <Grid container spacing={2}>
           <StatusColumn 
-            status="pending" 
-            reclams={reclams} 
+            status="pending"
+            reclams={reclams}
             onStatusChange={handleStatusChange}
             onEdit={handleEdit}
             onDelete={handleDelete}
           />
           <StatusColumn 
-            status="in_progress" 
-            reclams={reclams} 
+            status="in_progress"
+            reclams={reclams}
             onStatusChange={handleStatusChange}
             onEdit={handleEdit}
             onDelete={handleDelete}
           />
           <StatusColumn 
-            status="resolved" 
-            reclams={reclams} 
+            status="rejected"
+            reclams={reclams}
             onStatusChange={handleStatusChange}
             onEdit={handleEdit}
             onDelete={handleDelete}
           />
           <StatusColumn 
-            status="closed" 
-            reclams={reclams} 
+            status="closed"
+            reclams={reclams}
             onStatusChange={handleStatusChange}
             onEdit={handleEdit}
             onDelete={handleDelete}
           />
         </Grid>
+
+        {/* Recent Reclamations Table */}
+        <Box sx={{ mt: 4 }}>
+          <AgentRecentReclamsTable reclams={reclamsForTable} onEdit={handleEditTable} />
+        </Box>
 
         {/* Error Alert */}
         {error && (
@@ -554,7 +612,7 @@ const AgentDashboard = () => {
                 >
                   <MenuItem value="pending">Pending</MenuItem>
                   <MenuItem value="in_progress">In Progress</MenuItem>
-                  <MenuItem value="resolved">Resolved</MenuItem>
+                  <MenuItem value="rejected">Rejected</MenuItem>
                   <MenuItem value="closed">Closed</MenuItem>
                 </TextField>
                 <TextField
@@ -577,9 +635,71 @@ const AgentDashboard = () => {
             </DialogActions>
           </form>
         </Dialog>
+
+        {/* Rejection Reason Dialog */}
+        <Dialog open={rejectionDialogOpen} onClose={handleRejectionDialogClose} maxWidth="xs" fullWidth>
+          <DialogTitle sx={{
+            background: theme.palette.mode === 'dark'
+              ? 'linear-gradient(90deg,#ff616f 0%,#ff1744 100%)'
+              : 'linear-gradient(90deg,#ff616f 0%,#ff1744 100%)',
+            color: '#fff',
+            fontWeight: 800,
+            letterSpacing: 1,
+            textAlign: 'center',
+            textTransform: 'uppercase',
+            boxShadow: '0 2px 8px rgba(0,0,0,0.08)'
+          }}>
+            Provide Rejection Reason
+          </DialogTitle>
+          <DialogContent sx={{
+            p: 3,
+            background: theme.palette.mode === 'dark' ? '#232526' : '#fff',
+            borderBottomLeftRadius: 12,
+            borderBottomRightRadius: 12
+          }}>
+            <Typography sx={{ mb: 2, fontWeight: 600, color: theme.palette.mode === 'dark' ? '#fff' : '#d32f2f' }}>
+              Please enter the reason for rejecting this reclamation. This will be visible to the user.
+            </Typography>
+            <TextField
+              autoFocus
+              multiline
+              minRows={2}
+              maxRows={5}
+              fullWidth
+              variant="outlined"
+              label="Rejection Reason"
+              value={rejectionReasonValue}
+              onChange={e => setRejectionReasonValue(e.target.value)}
+              sx={{
+                background: theme.palette.mode === 'dark' ? '#2d2d2d' : '#fff0f1',
+                borderRadius: 2,
+                mb: 1,
+                '& .MuiOutlinedInput-root': {
+                  fontWeight: 600,
+                },
+              }}
+              inputProps={{ maxLength: 250 }}
+            />
+          </DialogContent>
+          <DialogActions sx={{
+            background: theme.palette.mode === 'dark' ? '#232526' : '#fff',
+            borderBottomLeftRadius: 12,
+            borderBottomRightRadius: 12,
+            pb: 2
+          }}>
+            <Button onClick={handleRejectionDialogClose} variant="outlined" color="inherit">
+              Cancel
+            </Button>
+            <Button onClick={handleRejectionDialogSubmit} variant="contained" color="error" sx={{ fontWeight: 700 }}>
+              Submit
+            </Button>
+          </DialogActions>
+        </Dialog>
+
+       
       </Box>
     </DndProvider>
-  );
+  ); 
 };
 
 // Status Column Component
@@ -604,7 +724,7 @@ const StatusColumn = ({ status, reclams, onStatusChange, onEdit, onDelete }: {
   const statusColors: Record<string, string> = {
     pending: '#2563EB',
     in_progress: '#D97706',
-    resolved: '#059669',
+    rejected: '#FF0000',
     closed: '#000000'
   };
 
@@ -773,6 +893,42 @@ const ReclamCard = ({ reclam, onEdit, onDelete }: {
         <Typography variant="body2" sx={{ mt: 1, mb: 2 }}>
           {reclam.description}
         </Typography>
+
+        {/* Professional Rejection Reason Display */}
+        {reclam.status === 'rejected' && reclam.rejectionReason && (
+          <Box
+            sx={{
+              mt: 2,
+              mb: 1,
+              p: 2,
+              background: theme.palette.mode === 'dark'
+                ? 'linear-gradient(90deg,#2d2d2d 0%,#ff1744 100%)'
+                : 'linear-gradient(90deg,#fff0f1 0%,#ff1744 100%)',
+              borderRadius: 2,
+              border: theme.palette.mode === 'dark' ? '1px solid #ff616f' : '1px solid #ff1744',
+              boxShadow: theme.palette.mode === 'dark' ? 8 : 2,
+              display: 'flex',
+              alignItems: 'flex-start',
+              gap: 2,
+            }}
+          >
+            <Box sx={{ mt: 0.5 }}>
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" style={{ display: 'block' }}>
+                <circle cx="12" cy="12" r="12" fill="#ff1744" fillOpacity="0.12" />
+                <path d="M12 7v5" stroke="#ff1744" strokeWidth="2" strokeLinecap="round" />
+                <circle cx="12" cy="16" r="1" fill="#ff1744" />
+              </svg>
+            </Box>
+            <Box>
+              <Typography variant="subtitle2" sx={{ color: '#ff1744', fontWeight: 700, letterSpacing: 1, mb: 0.5 }}>
+                Rejection Reason
+              </Typography>
+              <Typography variant="body2" sx={{ color: theme.palette.mode === 'dark' ? '#fff' : '#d32f2f', fontWeight: 500 }}>
+                {reclam.rejectionReason}
+              </Typography>
+            </Box>
+          </Box>
+        )}
         
         <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 2 }}>
           <Box sx={{ display: 'flex', alignItems: 'center' }}>

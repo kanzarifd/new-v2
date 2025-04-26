@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import Dialog from '@mui/material/Dialog';
 import DialogTitle from '@mui/material/DialogTitle';
 import DialogContent from '@mui/material/DialogContent';
@@ -15,6 +15,15 @@ interface AttachmentPreviewDialogProps {
 }
 
 const AttachmentPreviewDialog: React.FC<AttachmentPreviewDialogProps> = ({ open, onClose, src, alt, isImage }) => {
+  useEffect(() => {
+    const style = document.createElement('style');
+    style.innerHTML = `@keyframes fadein { from { opacity: 0; } to { opacity: 1; } }`;
+    document.head.appendChild(style);
+    return () => {
+      document.head.removeChild(style);
+    };
+  }, []);
+
   return (
     <Dialog open={open} onClose={onClose} maxWidth="md" fullWidth>
       <DialogTitle sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', pr: 2 }}>
@@ -26,12 +35,25 @@ const AttachmentPreviewDialog: React.FC<AttachmentPreviewDialogProps> = ({ open,
       <DialogContent>
         <Box display="flex" justifyContent="center" alignItems="center" minHeight={400}>
           {isImage && src ? (
-            <img
-              src={src}
-              alt={alt || 'Attachment'}
-              style={{ maxWidth: '100%', maxHeight: '70vh', borderRadius: 8, boxShadow: '0 2px 16px #ccc' }}
-              onError={e => { e.currentTarget.onerror = null; e.currentTarget.style.display = 'none'; }}
-            />
+            <Box sx={{
+              width: '100%',
+              display: 'flex',
+              justifyContent: 'center',
+              alignItems: 'center',
+              minHeight: 400,
+              animation: 'fadein 0.7s',
+            }}>
+              <img
+                src={src}
+                alt={alt || 'Attachment'}
+                style={{ maxWidth: '100%', maxHeight: '70vh', borderRadius: 8, boxShadow: '0 2px 16px #ccc', objectFit: 'contain', background: '#f4f4f4' }}
+                onError={e => {
+                  e.currentTarget.onerror = null;
+                  e.currentTarget.src = 'https://via.placeholder.com/400x300?text=Image+not+found';
+                }}
+                loading="lazy"
+              />
+            </Box>
           ) : src ? (
             <Box sx={{ textAlign: 'center', width: '100%' }}>
               <iframe

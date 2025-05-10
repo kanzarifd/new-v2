@@ -16,7 +16,7 @@ const parseDate = (dateString: string | undefined): Date | null => {
 export const addRegion = async (req: Request, res: Response) => {
   try {
     const { name, date_debut, date_fin } = req.body;
-    
+          
     // Validate dates
     const debutDate = parseDate(date_debut);
     const finDate = parseDate(date_fin);

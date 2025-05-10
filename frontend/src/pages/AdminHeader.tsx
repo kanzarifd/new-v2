@@ -127,14 +127,20 @@ const AdminHeader: React.FC<AdminHeaderProps> = ({
     const interval = setInterval(async () => {
       try {
         const res = await axios.get('http://localhost:8000/api/reclams?unreadForAgent=1');
-        if (Array.isArray(res.data) && res.data.length > 0) {
-          setNotifications(res.data.map((r: any) => ({
+        if (Array.isArray(res.data)) {
+          // Filter for today's date
+          const todayStr = new Date().toISOString().slice(0, 10);
+          const todaysReclams = res.data.filter((r: any) => {
+            const createdAt = r.createdAt || r.date_debut || r.created_at;
+            return createdAt && createdAt.slice(0, 10) === todayStr;
+          });
+          setNotifications(todaysReclams.map((r: any) => ({
             id: r.id,
             title: r.title,
             user: r.user && (r.user.name || r.user.email) ? r.user : null,
             user_id: r.user_id
           })));
-          setUnreadCount(res.data.length);
+          setUnreadCount(todaysReclams.length);
         } else {
           setNotifications([]);
           setUnreadCount(0);
@@ -275,7 +281,7 @@ const AdminHeader: React.FC<AdminHeaderProps> = ({
                   Notifications
                 </Typography>
                 <Typography variant="caption" color={mode === 'dark' ? '#e0e0e0' : '#b71c1c'} fontWeight={600}>
-                  You have {notifications.length} new updates
+                  You have {notifications.length} new reclamations today
                 </Typography>
               </Box>
 

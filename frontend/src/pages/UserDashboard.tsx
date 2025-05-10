@@ -4,6 +4,7 @@ import { useAuth } from '../components/context/AuthContext';
 import FakeChatbot from '../components/FakeChatbot';
 import ChatbotPanel from '../components/ChatbotPanel'; // Adjust path
 import AttachmentPreviewDialog from '../components/AttachmentPreviewDialog';
+import VerificationCard from '../components/VerificationCard';
 
 import axios from 'axios';
 import {
@@ -32,9 +33,17 @@ import {
   Snackbar,
   Chip, 
   Tooltip,
-  Zoom
+  Zoom,
+  Grid,
+  SelectChangeEvent,
+  FormHelperText,
+  Link,
+  Divider
 } from '@mui/material';
-import { Edit as EditIcon, Delete as DeleteIcon, Add as AddIcon, Logout, Visibility as VisibilityIcon, HighlightOff, DoneAll, Autorenew, HourglassEmpty, CheckCircleOutline } from '@mui/icons-material';
+import { Edit as EditIcon, Delete as DeleteIcon, Add as AddIcon, Logout, Visibility as VisibilityIcon, HighlightOff, DoneAll, 
+  Autorenew, HourglassEmpty, CheckCircleOutline, CreditCard, AccountBalance, Payment, Lock, CreditScore, 
+  Security, MonetizationOn, PhoneAndroid, Help, Report, AccountCircle, ErrorOutline, Warning,
+  BlockOutlined, Password, AccountBalanceWallet, CompareArrows, LoginOutlined, BugReport, MobileFriendly } from '@mui/icons-material';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
@@ -61,6 +70,129 @@ interface Region {
   name: string;
 }
 
+type BankIssueType = 'card' | 'account' | 'transaction' | 'password' | 'credit' | 'fraud' | 'payment' | 'app' | 'other';
+
+const bankIssueTypes = [
+  { value: 'card', label: 'Card Issues', icon: <CreditCard /> },
+  { value: 'account', label: 'Account Services', icon: <AccountBalance /> },
+  { value: 'transaction', label: 'Transaction Issues', icon: <CompareArrows /> },
+  { value: 'password', label: 'Password/Login Issues', icon: <Lock /> },
+  { value: 'credit', label: 'Credit Card Issues', icon: <CreditScore /> },
+  { value: 'fraud', label: 'Fraud Concerns', icon: <Security /> },
+  { value: 'payment', label: 'Payment Issues', icon: <Payment /> },
+  { value: 'app', label: 'Banking App Issues', icon: <PhoneAndroid /> },
+  { value: 'other', label: 'Other Issues', icon: <Help /> }
+];
+
+interface TitleOption {
+  title: string;
+  icon: JSX.Element;
+}
+
+
+// Professional, unified icon style for title options
+const titleOptionIconSx = {
+  color: '#b71c1c', // Main red theme color
+  fontSize: 28,
+  transition: 'transform 0.3s cubic-bezier(.4,2,.6,1), color 0.2s',
+  verticalAlign: 'middle',
+  mr: 1.1,
+  filter: 'drop-shadow(0 2px 8px #b71c1c22)',
+  '&:hover': {
+    color: '#d32f2f',
+    transform: 'scale(1.14) rotate(-6deg)',
+    filter: 'drop-shadow(0 6px 16px #b71c1c44)',
+  }
+};
+
+// Add animation CSS for icon pop effect (only once)
+if (typeof window !== 'undefined' && !document.getElementById('title-option-icon-style')) {
+  const style = document.createElement('style');
+  style.id = 'title-option-icon-style';
+  style.innerHTML = `
+    .title-option-icon {
+      animation: popInTitleOption 0.7s cubic-bezier(.4,2,.6,1);
+    }
+    @keyframes popInTitleOption {
+      from { opacity: 0; transform: scale(0.7) translateY(14px); }
+      to { opacity: 1; transform: scale(1) translateY(0); }
+    }
+  `;
+  document.head.appendChild(style);
+}
+
+const bankIssueTitles: Record<BankIssueType, TitleOption[]> = {
+  card: [
+    { title: 'Card Lost', icon: <Report /> },
+    { title: 'Card Stolen', icon: <Warning /> },
+    { title: 'Card Damaged', icon: <BlockOutlined /> },
+    { title: 'Card Blocked', icon: <ErrorOutline /> },
+    { title: 'PIN Issues', icon: <Password /> }
+  ],
+  account: [
+    { title: 'Account Access Issues', icon: <AccountCircle /> },
+    { title: 'Account Balance Discrepancy', icon: <AccountBalanceWallet /> },
+    { title: 'Account Statement Issues', icon: <Report /> },
+    { title: 'Account Fees Dispute', icon: <Warning /> }
+  ],
+  transaction: [
+    { title: 'Failed Transaction', icon: <ErrorOutline /> },
+    { title: 'Duplicate Transaction', icon: <CompareArrows /> },
+    { title: 'Unauthorized Transaction', icon: <Warning /> },
+    { title: 'Transfer Issues', icon: <Report /> }
+  ],
+  password: [
+    { title: 'Password Reset Failed', icon: <Password /> },
+    { title: 'Account Locked', icon: <Lock /> },
+    { title: 'Login Issues', icon: <LoginOutlined /> },
+    { title: 'Security Questions', icon: <Security /> }
+  ],
+  credit: [
+    { title: 'Credit Limit Issues', icon: <CreditScore /> },
+    { title: 'Interest Rate Dispute', icon: <MonetizationOn /> },
+    { title: 'Credit Score Issues', icon: <Report /> },
+    { title: 'Payment Due Date', icon: <Warning /> }
+  ],
+  fraud: [
+    { title: 'Suspicious Activity', icon: <Warning /> },
+    { title: 'Identity Theft', icon: <Security /> },
+    { title: 'Unauthorized Access', icon: <ErrorOutline sx={titleOptionIconSx} className="title-option-icon" /> },
+    { title: 'Phishing Report', icon: <Report sx={titleOptionIconSx} className="title-option-icon" /> }
+  ],
+  payment: [
+    { title: 'Payment Not Received', icon: <Report sx={titleOptionIconSx} className="title-option-icon" /> },
+    { title: 'Payment Processing Delay', icon: <HourglassEmpty sx={titleOptionIconSx} className="title-option-icon" /> },
+    { title: 'Wrong Payment Amount', icon: <Warning sx={titleOptionIconSx} className="title-option-icon" /> },
+    { title: 'Recurring Payment Issues', icon: <ErrorOutline sx={titleOptionIconSx} className="title-option-icon" /> }
+  ],
+  app: [
+    { title: 'App Login Failed', icon: <LoginOutlined sx={titleOptionIconSx} className="title-option-icon" /> },
+    { title: 'App Feature Not Working', icon: <BugReport sx={titleOptionIconSx} className="title-option-icon" /> },
+    { title: 'App Crash Issues', icon: <ErrorOutline sx={titleOptionIconSx} className="title-option-icon" /> },
+    { title: 'Mobile Banking Error', icon: <MobileFriendly sx={titleOptionIconSx} className="title-option-icon" /> }
+  ],
+  other: [
+    { title: 'General Inquiry', icon: <Help sx={titleOptionIconSx} className="title-option-icon" /> },
+    { title: 'Service Quality', icon: <Report sx={titleOptionIconSx} className="title-option-icon" /> },
+    { title: 'Branch Related', icon: <AccountBalance sx={titleOptionIconSx} className="title-option-icon" /> },
+    { title: 'Other Issue', icon: <Help sx={titleOptionIconSx} className="title-option-icon" /> }
+  ]
+};
+
+
+// Add animation CSS for icon pop effect
+const style = document.createElement('style');
+style.innerHTML = `
+  .title-option-icon {
+    animation: popInTitleOption 0.7s cubic-bezier(.4,2,.6,1);
+  }
+  @keyframes popInTitleOption {
+    from { opacity: 0; transform: scale(0.7) translateY(14px); }
+    to { opacity: 1; transform: scale(1) translateY(0); }
+  }
+`;
+document.head.appendChild(style);
+
 interface FormValues {
   title: string;
   description: string;
@@ -73,35 +205,45 @@ interface FormValues {
   attachment: File | null;
   currentAgency?: string;
   rejectionReason?: string;
+  issueType: BankIssueType | '';
 }
 
 const UserDashboard = () => {
+  const [verificationOpen, setVerificationOpen] = useState(false);
+  const [verificationData, setVerificationData] = useState<any | null>(null);
   const theme = useTheme();
 
   const [chatOpen, setChatOpen] = useState(false);
 
-  const { user, token, logout } = useAuth();
-  const [reclams, setReclams] = useState<Reclam[]>([]);
   const [regions, setRegions] = useState<Region[]>([]);
-  const [open, setOpen] = useState(false);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [successMessage, setSuccessMessage] = useState<string | null>(null);
-  const [rejectedNotifOpen, setRejectedNotifOpen] = useState(false);
-  const [editingReclam, setEditingReclam] = useState<Reclam | null>(null);
-  const [formData, setFormData] = useState<FormValues>({
+
+  const { user, token, logout } = useAuth();
+
+  const todayStr = format(new Date('2025-05-09'), 'yyyy-MM-dd');
+  const defaultValues: FormValues = {
     title: '',
     description: '',
     status: 'pending',
     priority: 'medium',
-    date_debut: '',
+    date_debut: todayStr,
     date_fin: '',
     regionId: null,
     userId: user?.id ? Number(user.id) : null,
     attachment: null,
     currentAgency: '',
     rejectionReason: '',
-  });
+    issueType: '',
+  };
+
+  const [open, setOpen] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [reclams, setReclams] = useState<Reclam[]>([]);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [rejectedNotifOpen, setRejectedNotifOpen] = useState(false);
+  const [editingReclam, setEditingReclam] = useState<Reclam | null>(null);
+  const [formData, setFormData] = useState<FormValues>(defaultValues);
+  const [selectedReclamForView, setSelectedReclamForView] = useState<Reclam | null>(null);
 
   const [previewOpen, setPreviewOpen] = useState(false);
   const [previewSrc, setPreviewSrc] = useState<string | null>(null);
@@ -116,11 +258,17 @@ const UserDashboard = () => {
 
   const fetchReclams = async () => {
     try {
+      if (!user?.id) {
+        setError('User not authenticated');
+        return;
+      }
       setLoading(true);
       const response = await axios.get('http://localhost:8000/api/reclams', {
         headers: { Authorization: `Bearer ${token}` },
       });
-      setReclams(response.data);
+      // Filter reclams by current user ID
+      const userReclams = response.data.filter((reclam: Reclam) => reclam.user_id === Number(user.id));
+      setReclams(userReclams);
     } catch (err) {
       setError('Failed to fetch reclamations');
       console.error('Error fetching reclams:', err);
@@ -170,40 +318,17 @@ const UserDashboard = () => {
         attachment: null,
         currentAgency: reclam.currentAgency || '',
         rejectionReason: reclam.rejectionReason || '',
+        issueType: '',
       });
     } else {
-      setFormData({
-        title: '',
-        description: '',
-        status: 'pending',
-        priority: 'medium',
-        date_debut: '',
-        date_fin: '',
-        regionId: null,
-        userId: user?.id ? Number(user.id) : null,
-        attachment: null,
-        currentAgency: '',
-        rejectionReason: '',
-      });
+      setFormData({ ...defaultValues, date_debut: format(new Date(), 'yyyy-MM-dd') });
     }
   };
 
   const handleClose = () => {
     setOpen(false);
     setEditingReclam(null);
-    setFormData({
-      title: '',
-      description: '',
-      status: 'pending',
-      priority: 'medium',
-      date_debut: '',
-      date_fin: '',
-      regionId: null,
-      userId: user?.id ? Number(user.id) : null,
-      attachment: null,
-      currentAgency: '',
-      rejectionReason: '',
-    });
+    setFormData(defaultValues);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -220,9 +345,9 @@ const UserDashboard = () => {
       // Format dates if they exist
       let formattedData;
       if (editingReclam) {
-        // For updates, use camelCase keys to match backend expectations
+        // For updates, match backend field names
         formattedData = {
-          title: formData.title,
+          title: editingReclam.title, // Keep the existing title
           description: formData.description,
           status: formData.status,
           priority: formData.priority,
@@ -231,7 +356,7 @@ const UserDashboard = () => {
           regionId: formData.regionId,
           userId: formData.userId,
           currentAgency: formData.currentAgency,
-          rejectionReason: formData.rejectionReason,
+          rejectionReason: formData.rejectionReason
         };
       } else {
         // For creation, use snake_case keys
@@ -287,6 +412,8 @@ const UserDashboard = () => {
           setSuccessMessage('Reclamation updated successfully.');
         } else {
           setSuccessMessage('Reclamation created successfully.');
+          setVerificationData({ ...formData });
+          setVerificationOpen(true);
         }
       } catch (err) {
         setError('Failed to save reclamation');
@@ -379,7 +506,9 @@ const UserDashboard = () => {
         >
           Logout
         </Button>
-      </Box>
+      {/* Reclamation View Modal */}
+
+    </Box>
         
       <Box component="main" sx={{ flexGrow: 1, p: 3 }}>
         <UserHeader
@@ -387,7 +516,9 @@ const UserDashboard = () => {
           onLogout={handleLogout}
           onOpenChat={openChat} isMobile={false}      />
 
-      </Box>
+      {/* Reclamation View Modal */}
+
+    </Box>
 
       {/* Summary Cards */}
       <Box sx={{ display: 'flex', gap: 2, mb: 3 }}>
@@ -419,7 +550,9 @@ const UserDashboard = () => {
             <Typography variant="h4" sx={{ color: '#fff', fontWeight: 'bold' }}>{item.value}</Typography>
           </Paper>
         ))}
-      </Box>
+      {/* Reclamation View Modal */}
+
+    </Box>
 
       {error && (
         <Alert severity="error" sx={{ mb: 2 }}>
@@ -482,18 +615,29 @@ const UserDashboard = () => {
                     };
                   })()}
                 >
-                  <TableCell
-                    sx={reclam.status === 'rejected' ? {
-                      background: 'inherit',
-                      color: theme.palette.mode === 'dark' ? '#ff8a80' : '#b71c1c',
-                      fontWeight: 700,
-                      letterSpacing: '0.01em',
-                      fontFamily: 'inherit',
-                      fontSize: '1.08rem',
-                    } : {}}
-                  >
-                    {reclam.title}
-                  </TableCell>
+                  <TableCell sx={{ p: 1 }}>
+  <Link
+    component="button"
+    underline="hover"
+    sx={{
+      fontWeight: 700,
+      color: theme.palette.mode === 'dark' ? '#ff8a80' : '#b71c1c',
+      fontSize: '1.08rem',
+      letterSpacing: '0.01em',
+      fontFamily: 'inherit',
+      textTransform: 'none',
+      cursor: 'pointer',
+      '&:hover': {
+        textDecoration: 'underline',
+        color: theme.palette.mode === 'dark' ? '#ff5252' : '#d32f2f',
+      },
+    }}
+    aria-label={`Afficher les détails de la réclamation : ${reclam.title}`}
+    onClick={() => setSelectedReclamForView(reclam)}
+  >
+    {reclam.title}
+  </Link>
+</TableCell>
                   <TableCell
                     sx={{
                       background: reclam.status === 'rejected' ? (theme.palette.mode === 'dark' ? 'rgba(229,57,53,0.13)' : '#ffcdd2') : 'transparent',
@@ -639,13 +783,15 @@ const UserDashboard = () => {
                         >
                           {reclam.status.replace('_', ' ')}
                         </Typography>
-                      </Box>
+                      {/* Reclamation View Modal */}
+
+    </Box>
                     </Tooltip>
                   </TableCell>
                   <TableCell sx={reclam.status === 'rejected' ? {background: 'inherit', color: theme.palette.mode === 'dark' ? '#ff8a80' : '#b71c1c', fontWeight: 700} : {}}>{reclam.priority}</TableCell>
                   <TableCell sx={reclam.status === 'rejected' ? {background: 'inherit', color: theme.palette.mode === 'dark' ? '#ff8a80' : '#b71c1c', fontWeight: 700} : {}}>{reclam.date_debut}</TableCell>
                   <TableCell sx={reclam.status === 'rejected' ? {background: 'inherit', color: theme.palette.mode === 'dark' ? '#ff8a80' : '#b71c1c', fontWeight: 700} : {}}>
-                    {regions.find((r) => r.id === reclam.region_id)?.name || 'Unknown Region'}
+                    {regions.find((r: Region) => r.id === reclam.region_id)?.name || 'Unknown Region'}
                   </TableCell>
                   <TableCell sx={reclam.status === 'rejected' ? {background: 'inherit', color: theme.palette.mode === 'dark' ? '#ff8a80' : '#b71c1c', fontWeight: 700} : {}}>
                     {reclam.attachment ? (
@@ -699,7 +845,12 @@ const UserDashboard = () => {
                               {reclam.rejectionReason}
                             </Typography>
                           </DialogContent>
-                          <DialogActions>
+                          <DialogActions sx={{ 
+            p: 3, 
+            gap: 2,
+            borderTop: '1px solid #eee',
+            bgcolor: '#fff'
+          }}>
                             <Button onClick={() => setOpenReasonDialogId(null)} color="primary" autoFocus>Close</Button>
                           </DialogActions>
                         </Dialog>
@@ -731,204 +882,444 @@ const UserDashboard = () => {
         )}
       </Paper>
 
-      <Dialog
-        open={open}
-        onClose={handleClose}
-        maxWidth="md"
+     
+
+      <Dialog 
+        open={open} 
+        onClose={handleClose} 
+        maxWidth="md" 
         fullWidth
-        PaperProps={{ sx: { borderRadius: 3, bgcolor: theme.palette.background.paper, boxShadow: 5 } }}
+        PaperProps={{
+          sx: {
+            borderRadius: 2,
+            '& .MuiDialogContent-root': {
+              p: 3
+            }
+          }
+        }}
       >
-        <form onSubmit={handleSubmit}>
-          <DialogTitle
-            sx={{
-              bgcolor: 'linear-gradient(90deg, #e53935 0%, #b71c1c 100%)',
-              color: '#fff',
-              textAlign: 'center',
-              fontWeight: 'bold',
-            }}
-          >
-            {editingReclam ? 'Edit Reclamation' : 'Add New Reclamation'}
-          </DialogTitle>
-          <DialogContent>
-            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-              <TextField
-                fullWidth
-                label="Title"
-                value={formData.title}
-                onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                required
-                error={!formData.title} />
+        <DialogTitle
+          sx={{
+            background: 'linear-gradient(135deg, #8B0000 0%, #B71C1C 100%)',
+            color: 'white',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            p: 3,
+            fontSize: '1.5rem',
+            fontWeight: 600,
+            borderBottom: '2px solid rgba(255,255,255,0.1)',
+            position: 'relative',
+            overflow: 'hidden',
+            '&::before': {
+              content: '""',
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              background: 'linear-gradient(135deg, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0) 100%)',
+              opacity: 0,
+              transition: 'opacity 0.3s ease',
+            },
+            '&:hover::before': {
+              opacity: 1,
+            },
+            '& .MuiTypography-root': {
+              display: 'flex',
+              alignItems: 'center',
+              gap: 2,
+              transition: 'transform 0.3s ease',
+              '&:hover': {
+                transform: 'translateX(5px)',
+              },
+              '& .MuiSvgIcon-root': {
+                fontSize: '2rem',
+                transition: 'transform 0.3s ease',
+              },
+              '&:hover .MuiSvgIcon-root': {
+                transform: 'rotate(10deg)',
+              }
+            }
+          }}
+        >
+          <Typography variant="h5" component="div">
+            {editingReclam ? <EditIcon /> : <AddIcon />}
+            {editingReclam ? 'Edit Reclamation' : 'New Reclamation'}
+          </Typography>
+        </DialogTitle>
 
-              <TextField
-                fullWidth
-                multiline
-                rows={4}
-                label="Description"
-                value={formData.description}
-                onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                required />
+        <DialogContent>
+          <Box sx={{ 
+            display: 'flex', 
+            flexDirection: 'column', 
+            gap: 3,
+            bgcolor: theme => theme.palette.mode === 'dark' ? '#1a1a1a' : '#ffffff',
+            borderRadius: 1,
+            p: 3,
+            color: theme => theme.palette.mode === 'dark' ? '#ffffff' : '#333333',
+            '& .MuiFormControl-root': {
+              '& .MuiInputLabel-root': {
+                color: theme => theme.palette.mode === 'dark' ? '#ffffff' : '#666666',
+                '&.Mui-focused': {
+                  color: theme => theme.palette.mode === 'dark' ? '#ff1744' : '#B71C1C'
+                }
+              },
+              '& .MuiOutlinedInput-root': {
+                color: theme => theme.palette.mode === 'dark' ? '#ffffff' : '#333333',
+                backgroundColor: theme => theme.palette.mode === 'dark' ? 'transparent' : '#ffffff',
+                '& fieldset': {
+                  borderColor: theme => theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.3)' : 'rgba(183, 28, 28, 0.3)'
+                },
+                '&:hover fieldset': {
+                  borderColor: theme => theme.palette.mode === 'dark' ? '#ff1744' : '#B71C1C'
+                },
+                '&.Mui-focused fieldset': {
+                  borderColor: theme => theme.palette.mode === 'dark' ? '#ff1744' : '#B71C1C'
+                },
+                '& input': {
+                  color: theme => theme.palette.mode === 'dark' ? '#ffffff' : '#333333'
+                },
+                '& textarea': {
+                  color: theme => theme.palette.mode === 'dark' ? '#ffffff' : '#333333'
+                }
+              },
+              '& .MuiSelect-select': {
+                display: 'flex',
+                alignItems: 'center',
+                gap: 1
+              },
+              '& .MuiMenuItem-root': {
+                transition: 'all 0.2s',
+                color: theme => theme.palette.mode === 'dark' ? '#ffffff' : '#333333',
+                '&:hover': {
+                  bgcolor: theme => theme.palette.mode === 'dark' ? 'rgba(255,23,68,0.1)' : 'rgba(183, 28, 28, 0.1)',
+                  '& .MuiSvgIcon-root': {
+                    color: theme => theme.palette.mode === 'dark' ? '#ff1744' : '#B71C1C'
+                  }
+                }
+              },
+              '& .MuiSelect-icon': {
+                color: theme => theme.palette.mode === 'dark' ? '#ffffff' : '#666666'
+              },
+              '& .MuiSvgIcon-root': {
+                color: theme => theme.palette.mode === 'dark' ? '#ffffff' : '#666666'
+              }
+            }
+          }}>
+            <Typography variant="subtitle1" sx={{ mb: 2, color: theme => theme.palette.mode === 'dark' ? '#ffffff' : '#666666' }}>
+              Please provide the details of your reclamation below
+            </Typography>
 
-              <FormControl fullWidth>
-                <InputLabel>Status</InputLabel>
-                <Select
-                  value={formData.status}
-                  onChange={(e) => setFormData({ ...formData, status: e.target.value as FormValues['status'] })}
-                  label="Status"
-                  required
-                  disabled={!editingReclam}
-                >
-                  <MenuItem value="pending">Pending</MenuItem>
-                  <MenuItem value="in_progress">In Progress</MenuItem>
-                  <MenuItem value="resolved">Resolved</MenuItem>
-                  <MenuItem value="closed">Closed</MenuItem>
-                  <MenuItem value="rejected">Rejected</MenuItem>
-                </Select>
-              </FormControl>
-
-              <FormControl fullWidth>
-                <InputLabel>Priority</InputLabel>
-                <Select
-                  value={formData.priority}
-                  onChange={(e) => setFormData({ ...formData, priority: e.target.value as FormValues['priority'] })}
-                  label="Priority"
-                  required
-                >
-                  <MenuItem value="high">High</MenuItem>
-                  <MenuItem value="medium">Medium</MenuItem>
-                  <MenuItem value="low">Low</MenuItem>
-                </Select>
-              </FormControl>
-
-              <FormControl fullWidth>
-                <InputLabel>Region</InputLabel>
-                <Select
-                  value={formData.regionId || ''}
-                  onChange={(e) => setFormData({ ...formData, regionId: Number(e.target.value) || null })}
-                  label="Region"
-                  required
-                >
-                  <MenuItem value="">Select a region</MenuItem>
-                  {regions.map((region) => (
-                    <MenuItem key={region.id} value={region.id}>
-                      <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                        <Chip
-                          label={region.name}
-                          size="small"
-                          sx={{
-                            backgroundColor: theme.palette.mode === 'dark'
-                              ? '#e0e0e0'
-                              : '#f3f6fa',
-                            color: '#111',
-                            fontWeight: 600,
-                            border: theme.palette.mode === 'dark' ? '1px solid #333' : '1px solid #ececec',
-                            mr: 1
-                          }}
-                        />
-                      </Box>
-                    </MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
-
-              <LocalizationProvider dateAdapter={AdapterDateFns}>
-                <DatePicker
-                  label="Start Date"
-                  value={formData.date_debut ? new Date(formData.date_debut) : null}
-                  onChange={(date) => {
-                    if (date instanceof Date) {
-                      setFormData((prev) => ({ ...prev, date_debut: format(date, 'yyyy-MM-dd') }));
-                    }
-                  } }
-                  renderInput={(params) => (
-                    <TextField {...params} fullWidth required />
-                  )} />
-
-                  
-                  <TextField
-                label="Current Agency"
-                value={formData.currentAgency}
-                onChange={e => setFormData(prev => ({ ...prev, currentAgency: e.target.value }))}
-                fullWidth
-                sx={{ mt: 2 }}
-              />
-              </LocalizationProvider>
-
-              {/* Attachment Upload */}
-              <Box>
-                <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 600 }}>
-                  Attachment (optional)
-                </Typography>
-                <Button
-                  variant="outlined"
-                  component="label"
-                  sx={{
-                    borderRadius: 2,
-                    borderColor: theme.palette.mode === 'dark' ? '#333' : '#bdbdbd',
-                    color: theme.palette.mode === 'dark' ? '#fff' : '#111',
-                    fontWeight: 500,
-                    textTransform: 'none',
-                    background: theme.palette.mode === 'dark' ? '#232526' : '#fafafa',
-                    '&:hover': {
-                      background: theme.palette.mode === 'dark' ? '#414345' : '#e0e0e0',
-                    },
-                  }}
-                  
-                >
-                  Upload Image
-                  <input
-                    type="file"
-                    accept="image/*"
-                    hidden
+            {!editingReclam && (
+              <>
+                <FormControl fullWidth>
+                  <InputLabel>Issue Type</InputLabel>
+                  <Select
+                    value={formData.issueType}
+                    label="Issue Type"
                     onChange={(e) => {
-                      const file = e.target.files?.[0];
-                      if (file) {
-                        setFormData((prev) => ({ ...prev, attachment: file }));
-                      }
+                      setFormData({
+                        ...formData,
+                        issueType: e.target.value as BankIssueType,
+                        title: ''
+                      });
+                    }}
+                    required
+                  >
+                    {bankIssueTypes.map((type) => (
+                      <MenuItem key={type.value} value={type.value}>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                          {type.icon}
+                          {type.label}
+                        {/* Reclamation View Modal */}
+
+    </Box>
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+
+                <FormControl fullWidth>
+                  <InputLabel>Title</InputLabel>
+                  <Select
+                    value={formData.title}
+                    label="Title"
+                    onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                    required
+                    disabled={!formData.issueType}
+                  >
+                    {formData.issueType && bankIssueTitles[formData.issueType].map((item) => (
+                      <MenuItem key={item.title} value={item.title}>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                          {item.icon}
+                          {item.title}
+                        {/* Reclamation View Modal */}
+
+    </Box>
+                      </MenuItem>
+                    ))}
+                  </Select>
+                  {!formData.issueType && (
+                    <FormHelperText>Please select an issue type first</FormHelperText>
+                  )}
+                </FormControl>
+              </>
+            )}
+
+            <TextField
+              fullWidth
+              multiline
+              rows={4}
+              label="Description"
+              value={formData.description}
+              onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+              required
+              sx={{
+                '& .MuiOutlinedInput-root': {
+                  '&:hover fieldset': {
+                    borderColor: 'primary.light'
+                  },
+                  '&.Mui-focused fieldset': {
+                    borderColor: 'primary.main'
+                  }
+                }
+              }}
+            />
+
+            <TextField
+              fullWidth
+              label="Status"
+              value={formData.status.charAt(0).toUpperCase() + formData.status.slice(1).replace('_', ' ')}
+              InputProps={{
+                readOnly: true,
+              }}
+              sx={{
+                '& .MuiInputBase-input.Mui-readOnly': {
+                  opacity: 0.7,
+                }
+              }}
+            />
+
+            <FormControl fullWidth>
+              <InputLabel>Priority</InputLabel>
+              <Select
+                value={formData.priority}
+                onChange={(e) => setFormData({ ...formData, priority: e.target.value as FormValues['priority'] })}
+                label="Priority"
+                required
+              >
+                <MenuItem value="high">High</MenuItem>
+                <MenuItem value="medium">Medium</MenuItem>
+                <MenuItem value="low">Low</MenuItem>
+              </Select>
+            </FormControl>
+
+            <FormControl fullWidth>
+              <InputLabel>Region</InputLabel>
+              <Select
+                value={formData.regionId || ''}
+                onChange={(e) => setFormData({ ...formData, regionId: Number(e.target.value) || null })}
+                label="Region"
+                required
+              >
+                <MenuItem value="">Select a region</MenuItem>
+                {regions.map((region: Region) => (
+                  <MenuItem key={region.id} value={region.id}>
+                    <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                      <Chip
+                        label={region.name}
+                        size="small"
+                        sx={{
+                          backgroundColor: theme.palette.mode === 'dark'
+                            ? '#e0e0e0'
+                            : '#f3f6fa',
+                          color: '#111',
+                          fontWeight: 600,
+                          border: theme.palette.mode === 'dark' ? '1px solid #333' : '1px solid #ececec',
+                          mr: 1
+                        }}
+                      />
+                    {/* Reclamation View Modal */}
+
+    </Box>
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+
+            <LocalizationProvider dateAdapter={AdapterDateFns}>
+              <DatePicker
+                label="Start Date"
+                value={formData.date_debut ? new Date(formData.date_debut) : null}
+                onChange={(date) => {
+                  if (date instanceof Date && !isNaN(date.getTime())) {
+                    setFormData((prev) => ({ ...prev, date_debut: format(date, 'yyyy-MM-dd') }));
+                  }
+                }}
+                renderInput={(params) => (
+                  <TextField
+                    {...params}
+                    fullWidth
+                    required
+                    sx={{
+                      '& .MuiOutlinedInput-root': {
+                        borderRadius: 2.5,
+                        background: '#fafafa',
+                        boxShadow: '0 2px 8px rgba(183,28,28,0.07)',
+                        '& fieldset': {
+                          borderColor: '#b71c1c44',
+                        },
+                        '&:hover fieldset': {
+                          borderColor: '#b71c1c',
+                        },
+                        '&.Mui-focused fieldset': {
+                          borderColor: '#b71c1c',
+                        },
+                      },
+                      '& .MuiInputLabel-root': {
+                        color: '#b71c1c',
+                        fontWeight: 600,
+                      },
+                      '& .MuiSvgIcon-root': {
+                        color: '#b71c1c',
+                      },
                     }}
                   />
-                  
-                </Button>
-                {formData.attachment && (
-                  <Typography variant="caption" sx={{ ml: 2 }}>
-                    {formData.attachment.name}
-                  </Typography>
                 )}
-              </Box>
+              />
+            </LocalizationProvider>
 
-              {formData.status === 'rejected' && false && (
-                <TextField
-                  label="Rejection Reason"
-                  value={formData.rejectionReason}
-                  onChange={e => setFormData(prev => ({ ...prev, rejectionReason: e.target.value }))}
-                  fullWidth
-                  sx={{ mt: 2 }}
-                />
-              )}
-            </Box>
-          </DialogContent>
-          <DialogActions sx={{ p: 2, justifyContent: 'flex-end' }}>
-            <Button
-              onClick={handleClose}
-              sx={{ color: '#e53935', fontWeight: 'bold' }}
-            >
-              Cancel
-            </Button>
-            <Button
-              type="submit"
-              variant="contained"
-              disabled={loading}
+            <TextField
+              label="Current Agency"
+              value={formData.currentAgency}
+              onChange={e => setFormData(prev => ({ ...prev, currentAgency: e.target.value }))}
+              fullWidth
               sx={{
-                ml: 1,
-                background: 'linear-gradient(90deg, #e53935 0%, #b71c1c 100%)',
-                color: '#fff',
-                fontWeight: 'bold',
-                '&:hover': { background: 'linear-gradient(90deg, #b71c1c 0%, #e53935 100%)' }
+                '& .MuiOutlinedInput-root': {
+                  '&:hover fieldset': {
+                    borderColor: 'primary.light'
+                  },
+                  '&.Mui-focused fieldset': {
+                    borderColor: 'primary.main'
+                  }
+                }
               }}
-            >
-              {loading ? <CircularProgress size={24} /> : editingReclam ? 'Update' : 'Add'}
-            </Button>
-          </DialogActions>
-        </form>
+            />
+
+            <Box>
+              <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 600 }}>
+                Attachment (optional)
+              </Typography>
+              <Button
+                variant="outlined"
+                color="error"
+                component="label"
+                startIcon={<VisibilityIcon />}
+                sx={{
+                  borderRadius: 2,
+                  px: 3,
+                  borderColor: '#b71c1c',
+                  color: '#b71c1c',
+                  fontWeight: 700,
+                  background: '#fff',
+                  boxShadow: '0 1px 4px #b71c1c22',
+                  transition: 'all 0.2s',
+                  '&:hover': {
+                    bgcolor: '#b71c1c',
+                    color: '#fff',
+                    borderColor: '#b71c1c',
+                    boxShadow: '0 2px 8px #b71c1c33',
+                  },
+                  '&:focus': {
+                    bgcolor: '#b71c1c',
+                    color: '#fff',
+                    borderColor: '#b71c1c',
+                  }
+                }}
+              >
+                Upload Image
+                <input
+                  type="file"
+                  accept="image/*"
+                  hidden
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) {
+                      setFormData((prev) => ({ ...prev, attachment: file }));
+                    }
+                  }}
+                />
+              </Button>
+              {formData.attachment && (
+                <Typography variant="caption" sx={{ ml: 2 }}>
+                  {formData.attachment.name}
+                </Typography>
+              )}
+            {/* Reclamation View Modal */}
+
+    </Box>
+          {/* Reclamation View Modal */}
+
+    </Box>
+        </DialogContent>
+
+        <DialogActions sx={{ 
+          p: 3, 
+          gap: 2,
+          borderTop: theme => `1px solid ${theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.1)' : 'rgba(183, 28, 28, 0.1)'}`,
+          bgcolor: theme => theme.palette.mode === 'dark' ? '#1a1a1a' : '#ffffff'
+        }}>
+          <Button 
+            onClick={handleClose}
+            variant="outlined"
+            startIcon={<HighlightOff />}
+            sx={{
+              borderRadius: 2,
+              px: 3,
+              color: theme => theme.palette.mode === 'dark' ? '#ffffff' : '#666666',
+              borderColor: theme => theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.3)' : 'rgba(183, 28, 28, 0.3)',
+              '&:hover': {
+                bgcolor: theme => theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.05)' : 'rgba(183, 28, 28, 0.05)',
+                borderColor: theme => theme.palette.mode === 'dark' ? '#ffffff' : '#B71C1C',
+                color: theme => theme.palette.mode === 'dark' ? '#ffffff' : '#B71C1C'
+              }
+            }}
+          >
+            Cancel
+          </Button>
+          <Button
+            variant="contained"
+            onClick={handleSubmit}
+            disabled={loading}
+            startIcon={loading ? null : editingReclam ? <EditIcon /> : <AddIcon />}
+            sx={{
+              borderRadius: 2,
+              px: 4,
+              background: theme => theme.palette.mode === 'dark' 
+                ? 'linear-gradient(135deg, #ff1744 0%, #B71C1C 100%)'
+                : 'linear-gradient(135deg, #B71C1C 0%, #8B0000 100%)',
+              color: 'white',
+              '&:hover': {
+                background: theme => theme.palette.mode === 'dark'
+                  ? 'linear-gradient(135deg, #B71C1C 0%, #ff1744 100%)'
+                  : 'linear-gradient(135deg, #8B0000 0%, #B71C1C 100%)'
+              },
+              '&:disabled': {
+                background: theme => `rgba(${theme.palette.mode === 'dark' ? '255,255,255' : '183, 28, 28'}, 0.12)`,
+                color: theme => `rgba(${theme.palette.mode === 'dark' ? '255,255,255' : '183, 28, 28'}, 0.3)`
+              }
+            }}
+          >
+            {loading ? (
+              <CircularProgress size={24} color="inherit" />
+            ) : editingReclam ? (
+              'Update'
+            ) : (
+              'Submit'
+            )}
+          </Button>
+        </DialogActions>
       </Dialog>
 
       <Dialog
@@ -1010,12 +1401,170 @@ const UserDashboard = () => {
         alt={previewAlt}
         isImage={previewIsImage}
       />
-    </Box>
-   
+    {/* Reclamation View Modal */}
 
-      <ChatbotPanel isOpen={chatOpen} onClose={() => setChatOpen(false)} />
-    
-    
+    </Box>
+
+    {/* Reclamation View Modal */}
+    <Dialog
+      open={!!selectedReclamForView}
+      onClose={() => setSelectedReclamForView(null)}
+      maxWidth="sm"
+      fullWidth
+      PaperProps={{
+        sx: {
+          borderRadius: 3,
+          p: 2,
+          bgcolor: theme.palette.mode === 'dark' ? '#212121' : '#fff',
+          boxShadow: 8,
+        },
+      }}
+    >
+      <DialogTitle sx={{ fontWeight: 800, color: '#b71c1c', fontSize: '2rem', textAlign: 'center', letterSpacing: 1, textShadow: '0 2px 8px rgba(183,28,28,0.08)' }}>
+        <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+          <span style={{ fontSize: 28, color: '#b71c1c' }}>📄</span> Reclamation Details
+        </span>
+      </DialogTitle>
+      <DialogContent sx={{ bgcolor: theme => theme.palette.mode === 'dark' ? '#191c1f' : '#fafbfc', borderRadius: 3, boxShadow: 0 }}>
+        {selectedReclamForView && (
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, p: 1 }}>
+            <Typography variant="h5" sx={{ color: '#b71c1c', fontWeight: 800, mb: 1, letterSpacing: 0.5 }}>{selectedReclamForView.title}</Typography>
+            <Divider sx={{ mb: 1 }} />
+            <Typography variant="body1" sx={{ mb: 2, fontSize: 17, color: 'text.primary' }}>
+              <b>Description:</b> {selectedReclamForView.description}
+            </Typography>
+            <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2, mb: 2 }}>
+              <Box sx={{ minWidth: 130 }}>
+                <Typography variant="subtitle2" color="text.secondary">Status</Typography>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                  <span style={{ color: selectedReclamForView.status?.toLowerCase() === 'resolved' ? '#388e3c' : '#b71c1c', fontWeight: 700 }}>
+                    ●
+                  </span>
+                  <Typography fontWeight={600}>{selectedReclamForView.status}</Typography>
+                </Box>
+              </Box>
+              <Box sx={{ minWidth: 130 }}>
+                <Typography variant="subtitle2" color="text.secondary">Priority</Typography>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                  <span style={{ color: selectedReclamForView.priority?.toLowerCase() === 'high' ? '#b71c1c' : '#fbc02d', fontWeight: 700 }}>
+                    ▲
+                  </span>
+                  <Typography fontWeight={600}>{selectedReclamForView.priority}</Typography>
+                </Box>
+              </Box>
+              <Box sx={{ minWidth: 130 }}>
+                <Typography variant="subtitle2" color="text.secondary">Start Date</Typography>
+                <Typography fontWeight={600}>{selectedReclamForView.date_debut}</Typography>
+              </Box>
+              <Box sx={{ minWidth: 130 }}>
+                <Typography variant="subtitle2" color="text.secondary">Region</Typography>
+                <Typography fontWeight={600}>{regions.find(r => r.id === selectedReclamForView.region_id)?.name || 'Unknown'}</Typography>
+              </Box>
+              <Box sx={{ minWidth: 130 }}>
+                <Typography variant="subtitle2" color="text.secondary">Current Agency</Typography>
+                <Typography fontWeight={600}>{selectedReclamForView.currentAgency || '-'}</Typography>
+              </Box>
+              <Box sx={{ minWidth: 130 }}>
+                <Typography variant="subtitle2" color="text.secondary">Rejection Reason</Typography>
+                {selectedReclamForView.rejectionReason ? (
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 0.5 }}>
+                    <Alert severity="error" icon={<Warning sx={{ color: '#b71c1c' }} />} sx={{ p: 0.5, pl: 1.5, bgcolor: '#ffebee', color: '#b71c1c', fontWeight: 700, fontStyle: 'italic', border: '1px solid #b71c1c', width: '100%' }}>
+                      {selectedReclamForView.rejectionReason}
+                    </Alert>
+                  </Box>
+                ) : (
+                  <Typography fontWeight={600} sx={{ color: 'text.secondary' }}>—</Typography>
+                )}
+              </Box>
+            </Box>
+            <Divider sx={{ my: 2 }} />
+            {selectedReclamForView.attachment && (
+  <Box>
+    <Typography variant="body2" sx={{ mb: 1 }}><b>Attachment:</b></Typography>
+    {/* Check if the attachment is an image by extension */}
+    {/\.(jpg|jpeg|png|gif|bmp|webp)$/i.test(selectedReclamForView.attachment) ? (
+      <Box
+        sx={{
+          display: 'inline-block',
+          p: 1,
+          borderRadius: 2,
+          boxShadow: 4,
+          border: theme => `2px solid ${theme.palette.mode === 'dark' ? '#333' : '#e0e0e0'}`,
+          background: theme => theme.palette.mode === 'dark' ? '#181818' : '#fafafa',
+          cursor: 'pointer',
+          transition: 'transform 0.2s, box-shadow 0.2s, border-color 0.2s',
+          '&:hover': {
+            transform: 'scale(1.04)',
+            boxShadow: 8,
+            borderColor: '#b71c1c',
+          },
+          maxWidth: 180,
+          maxHeight: 180,
+          overflow: 'hidden',
+        }}
+        onClick={() => {
+          setPreviewSrc(`http://localhost:8000/uploads/${selectedReclamForView.attachment}`);
+          setPreviewAlt(selectedReclamForView.title);
+          setPreviewIsImage(true);
+          setPreviewOpen(true);
+        }}
+        title="Click to enlarge"
+      >
+        <img
+          src={`http://localhost:8000/uploads/${selectedReclamForView.attachment}`}
+          alt={selectedReclamForView.title}
+          style={{ width: '100%', height: 'auto', display: 'block', borderRadius: 10, objectFit: 'cover', background: '#f4f4f4' }}
+          loading="lazy"
+        />
+      </Box>
+    ) : (
+      <Button
+        variant="outlined"
+        color="primary"
+        href={`http://localhost:8000/uploads/${selectedReclamForView.attachment}`}
+        target="_blank"
+        rel="noopener noreferrer"
+        sx={{ mt: 1 }}
+      >
+        Download Attachment
+      </Button>
+    )}
+  </Box>
+)}
+          {/* Reclamation View Modal */}
+
+    </Box>
+        )}
+      </DialogContent>
+      <DialogActions>
+        <Button onClick={() => setSelectedReclamForView(null)} color="error" variant="contained" sx={{ fontWeight: 700, borderRadius: 2 }}>
+          Close
+        </Button>
+      </DialogActions>
+    </Dialog>
+
+    {/* Verification Card Modal */}
+    {verificationOpen && verificationData && (
+      <VerificationCard
+        data={verificationData}
+        onAction={(action) => {
+          if (action === 'confirm') {
+            setVerificationOpen(false);
+            setVerificationData(null);
+          } else if (action === 'edit') {
+            setVerificationOpen(false);
+            setOpen(true); // Reopen the form dialog for editing
+          } else if (action === 'new') {
+            setVerificationOpen(false);
+            setFormData(defaultValues);
+            setOpen(true); // Open the form for a new reclamation
+          }
+        }}
+        onClose={() => setVerificationOpen(false)}
+      />
+    )}
+
+    <ChatbotPanel isOpen={chatOpen} onClose={() => setChatOpen(false)} />
     </>
   );
 };

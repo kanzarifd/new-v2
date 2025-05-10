@@ -290,8 +290,8 @@ const AdminDashboardStats = ({ reclamations, onEdit }: AdminDashboardStatsProps)
             },
           }}>
             <CheckIcon sx={{ fontSize: 40, color: '#b71c1c', bgcolor: '#fff', borderRadius: '50%', p: 1.2, boxShadow: '0 2px 8px 0 rgba(220,20,60,0.10)' }} />
-            <Typography variant="subtitle1" sx={{ mt: 1, fontWeight: 700 }}>Resolved</Typography>
-            <Typography variant="h5" sx={{ fontWeight: 900 }}>{dataBar.find((d) => d.name === 'Resolved')?.value || 0}</Typography>
+            <Typography variant="subtitle1" sx={{ mt: 1, fontWeight: 700 }}>Closed</Typography>
+            <Typography variant="h5" sx={{ fontWeight: 900 }}>{dataBar.find((d) => d.name === 'Closed')?.value || 0}</Typography>
           </Box>
         </Grid>
       </Grid>

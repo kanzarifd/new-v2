@@ -165,6 +165,7 @@ export const getAllUsers = async (_req: Request, res: Response) => {
         bank_account_number: true,
         bank_account_balance: true,
         role: true,
+        img: true,
       }
     });
     return res.json(users);
@@ -188,6 +189,7 @@ export const getUserById = async (req: Request, res: Response) => {
         bank_account_number: true,
         bank_account_balance: true,
         role: true,
+        img: true,
       }
     });
 
@@ -205,15 +207,21 @@ export const getUserById = async (req: Request, res: Response) => {
 export const updateUser = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
-    const { email, password, role } = req.body;
+    const { email, password, role, img, name, full_name, number } = req.body;
+
+    const updateData: any = {
+      email,
+      role,
+    };
+    if (typeof name !== 'undefined') updateData.name = name;
+    if (typeof full_name !== 'undefined') updateData.full_name = full_name;
+    if (typeof number !== 'undefined') updateData.number = number;
+    if (typeof img !== 'undefined') updateData.img = img;
+    if (password) updateData.password = await bcrypt.hash(password, 10);
 
     const user = await prisma.user.update({
       where: { id: Number(id) },
-      data: {
-        email,
-        password: password ? await bcrypt.hash(password, 10) : undefined,
-        role
-      }
+      data: updateData
     });
 
     return res.status(200).json({

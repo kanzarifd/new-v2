@@ -532,53 +532,176 @@ export const resendVerification = async (req: Request, res: Response) => {
       console.error('Email sending failed:', emailError);
       return res.status(500).json({ message: 'Failed to send verification email' });
     }
-  } catch (err: any) {
-    console.error('Resend verification error:', err);
-    return res.status(500).json({ message: 'Internal server error' });
   }
-};
-export const deleteUser = async (req: Request, res: Response) => {
-  try {
-    const { id } = req.params;
 
-    const existingUser = await prisma.user.findUnique({ where: { id: Number(id) } });
-
-    if (!existingUser) {
-      return res.status(404).json({ message: 'User not found' });
+  // Find user by email
+  const user = await prisma.user.findUnique({
+    where: { email },
+    select: {
+      id: true,
+      resetToken: true,
+      resetTokenExpiry: true
     }
+  });
 
-    await prisma.user.delete({
-      where: { id: Number(id) }
-    });
-
-    return res.status(200).json({ message: 'User deleted successfully' });
-  } catch (err: any) {
-    console.error('Error deleting user:', err);
-    return res.status(500).json({ message: 'Internal server error' });
+  if (!user) {
+    return res.status(404).json({ message: 'User not found' });
   }
-};
 
+  if (user.resetToken) {
+    return res.status(400).json({ message: 'Account is already verified' });
+  }
 
-export const getUsersByRole = async (req: Request, res: Response, role: Prisma.UserRoleFilter) => {
+  // Generate new verification token
+  const verificationToken = crypto.randomBytes(32).toString('hex');
+
+  // Update user with new verification token
+  await prisma.user.update({
+    where: { id: user.id },
+    data: {
+      resetToken: verificationToken,
+      resetTokenExpiry: new Date(Date.now() + 3600000) // 1 hour from now
+    }
+  });
+
+  // Send verification email
   try {
-    const users = await prisma.user.findMany({
-      where: {
-        role
-      },
-      orderBy: {
-        createdAt: 'desc'
+    const transporter = nodemailer.createTransport({
+      service: 'gmail',
+      auth: {
+        user: process.env.EMAIL_USER,
+        pass: process.env.EMAIL_PASS
       }
     });
 
-    return res.json(users);
-  } catch (error: any) {
-    console.error('Error in getUsersByRole:', error);
-    return res.status(500).json({ error: error.message });
+    const verificationUrl = `${process.env.FRONTEND_URL}/verify-account?token=${verificationToken}`;
+
+    await transporter.sendMail({
+      from: process.env.EMAIL_USER,
+      to: email,
+      subject: 'Account Verification Request',
+      html: `
+        <h2>Account Verification Request</h2>
+        <p>Click the link below to verify your account:</p>
+        <a href="${verificationUrl}">${verificationUrl}</a>
+      `
+    });
+
+    return res.status(200).json({ message: 'Verification email sent' });
+  } catch (emailError) {
+    console.error('Email sending failed:', emailError);
+    return res.status(500).json({ message: 'Failed to send verification email' });
   }
+} catch (err: any) {
+  console.error('Resend verification error:', err);
+  return res.status(500).json({ message: 'Internal server error' });
+}
+};
+export const deleteUser = async (req: Request, res: Response) => {
+try {
+  const { id } = req.params;
+
+  const existingUser = await prisma.user.findUnique({ where: { id: Number(id) } });
+
+  if (!existingUser) {
+    return res.status(404).json({ message: 'User not found' });
+  }
+
+  await prisma.user.delete({
+    where: { id: Number(id) }
+  });
+
+  return res.status(200).json({ message: 'User deleted successfully' });
+} catch (err: any) {
+  console.error('Error deleting user:', err);
+  return res.status(500).json({ message: 'Internal server error' });
+}
+};
+
+export const getUserById = async (req: Request, res: Response) => {
+try {
+  const { id } = req.params;
+
+  const user = await prisma.user.findUnique({
+    where: { id: Number(id) },
+    include: {
+      region: {
+        select: {
+          id: true,
+          name: true
+        }
+      }
+    }
+  });
+
+  if (!user) {
+    return res.status(404).json({ message: 'User not found' });
+  }
+
+  return res.json(user);
+} catch (error: any) {
+  console.error('Error fetching user:', error);
+  return res.status(500).json({ error: error.message });
+}
+};
+
+export const getUsersByRole = async (req: Request, res: Response, role: Prisma.UserRoleFilter) => {
+try {
+  const users = await prisma.user.findMany({
+    where: {
+      role
+    },
+    include: {
+      region: {
+        select: {
+          id: true,
+          name: true
+        }
+      }
+    },
+    orderBy: {
+      createdAt: 'desc'
+    }
+  });
+
+  return res.json(users);
+} catch (error: any) {
+  console.error('Error in getUsersByRole:', error);
+  return res.status(500).json({ error: error.message });
+}
+};
+
+export const getAllUsers = async (_req: Request, res: Response) => {
+try {
+  const users = await prisma.user.findMany({
+    include: {
+      region: {
+        select: {
+          id: true,
+          name: true
+        }
+      }
+    }
+  });
+
+  return res.json(users);
+} catch (error: any) {
+  console.error('Error fetching users:', error);
+  return res.status(500).json({ error: error.message });
+}
 };
 
 // Change password controller
 export const changePassword = async (req: Request, res: Response) => {
+const { id } = req.params;
+const { currentPassword, newPassword } = req.body;
+if (!currentPassword || !newPassword) {
+  return res.status(400).json({ message: 'Current and new password are required.' });
+}
+try {
+  const user = await prisma.user.findUnique({ where: { id: Number(id) } });
+  if (!user) {
+    return res.status(404).json({ message: 'User not found.' });
   const { id } = req.params;
   const { currentPassword, newPassword } = req.body;
   if (!currentPassword || !newPassword) {

@@ -57,6 +57,13 @@ const UserHeader: React.FC<UserHeaderProps> = ({
   isMobile,
   onOpenChat,
 }) => {
+  // ...existing state
+  const [updateDialogOpen, setUpdateDialogOpen] = useState(false);
+  const [updateForm, setUpdateForm] = useState({ email: '', name: '', full_name: '', number: '' });
+  const [updateLoading, setUpdateLoading] = useState(false);
+  const [updateError, setUpdateError] = useState<string|null>(null);
+  const [updateSuccess, setUpdateSuccess] = useState<string|null>(null);
+
   const { mode, toggleColorMode } = useThemeContext();
   const { user, token } = useAuth();
   const [profileDialogOpen, setProfileDialogOpen] = useState(false);
@@ -69,6 +76,12 @@ const UserHeader: React.FC<UserHeaderProps> = ({
   const [profile, setProfile] = useState<any>(null);
   const [loadingProfile, setLoadingProfile] = useState(false);
   const [profileError, setProfileError] = useState<string | null>(null);
+
+  // Add state for image upload
+  const [selectedImg, setSelectedImg] = useState<File | null>(null);
+  const [imgPreview, setImgPreview] = useState<string | null>(null);
+  const [imgUploadLoading, setImgUploadLoading] = useState(false);
+  const [imgUploadError, setImgUploadError] = useState<string | null>(null);
 
   useEffect(() => {
     if (profileDialogOpen && user?.id && token) {
@@ -87,6 +100,20 @@ const UserHeader: React.FC<UserHeaderProps> = ({
         .finally(() => setLoadingProfile(false));
     }
   }, [profileDialogOpen, user?.id, token]);
+
+  // Pre-fill update form when opening update dialog
+  useEffect(() => {
+    if (updateDialogOpen && profile) {
+      setUpdateForm({
+        email: profile.email || '',
+        name: profile.name || '',
+        full_name: profile.full_name || '',
+        number: profile.number || ''
+      });
+      setUpdateError(null);
+      setUpdateSuccess(null);
+    }
+  }, [updateDialogOpen, profile]);
 
   const handleMenu = (event: React.MouseEvent<HTMLElement>) => {
     setAnchorEl(event.currentTarget);
@@ -147,6 +174,43 @@ const UserHeader: React.FC<UserHeaderProps> = ({
       setChangePasswordError(err.response?.data?.message || err.message || 'Failed to change password.');
     } finally {
       setChangePasswordLoading(false);
+    }
+  };
+
+  // Handle image selection
+  const handleImgChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      setSelectedImg(e.target.files[0]);
+      setImgPreview(URL.createObjectURL(e.target.files[0]));
+    }
+  };
+
+  // Handle image upload
+  const handleImgUpload = async () => {
+    if (!selectedImg || !user?.id || !token) return;
+    setImgUploadLoading(true);
+    setImgUploadError(null);
+    try {
+      const formData = new FormData();
+      formData.append('attachment', selectedImg);
+      // Upload image
+      const uploadRes = await axios.post('http://localhost:8000/api/upload/image', formData, {
+        headers: { 'Content-Type': 'multipart/form-data', Authorization: `Bearer ${token}` }
+      });
+      const filename = uploadRes.data.filename;
+      // Update user profile with image filename
+      await axios.put(`http://localhost:8000/api/users/${user.id}`, { img: filename }, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      // Refresh profile
+      setProfileDialogOpen(false);
+      setProfileDialogOpen(true);
+      setSelectedImg(null);
+      setImgPreview(null);
+    } catch (err: any) {
+      setImgUploadError(err.response?.data?.error || 'Failed to upload image');
+    } finally {
+      setImgUploadLoading(false);
     }
   };
 
@@ -271,8 +335,10 @@ const UserHeader: React.FC<UserHeaderProps> = ({
                   }
                 }}
               >
-                <Avatar sx={{ width: 26, height: 26, bgcolor: theme.palette.primary.main, fontWeight: 'bold', fontSize: 16 }}>
-                  {(profile?.name || profile?.full_name || profile?.email || '').charAt(0).toUpperCase()}
+                <Avatar sx={{ width: 26, height: 26, bgcolor: theme.palette.primary.main, fontWeight: 'bold', fontSize: 16 }}
+                  src={profile?.img ? `http://localhost:8000/uploads/${profile.img}` : undefined}
+                >
+                  {!(profile?.img) && (profile?.name || profile?.full_name || profile?.email || '').charAt(0).toUpperCase()}
                 </Avatar>
                 <span style={{
                   position: 'absolute',
@@ -318,8 +384,10 @@ const UserHeader: React.FC<UserHeaderProps> = ({
                 boxShadow: '0 2px 8px 0 rgba(220,20,60,0.10)',
                 mb: 1.5
               }}>
-                <Avatar sx={{ width: 44, height: 44, bgcolor: 'white', color: theme.palette.error.main, fontWeight: 'bold', fontSize: 22, border: `2px solid ${theme.palette.error.main}` }}>
-                  {(profile?.name || profile?.full_name || profile?.email || '').charAt(0).toUpperCase()}
+                <Avatar sx={{ width: 44, height: 44, bgcolor: 'white', color: theme.palette.error.main, fontWeight: 'bold', fontSize: 22, border: `2px solid ${theme.palette.error.main}` }}
+                  src={profile?.img ? `http://localhost:8000/uploads/${profile.img}` : undefined}
+                >
+                  {!(profile?.img) && (profile?.name || profile?.full_name || profile?.email || '').charAt(0).toUpperCase()}
                 </Avatar>
                 <Box>
                   <Typography variant="subtitle1" sx={{ fontWeight: 800, color: 'white', lineHeight: 1.1, letterSpacing: 0.5 }}>
@@ -386,25 +454,36 @@ const UserHeader: React.FC<UserHeaderProps> = ({
           Account Overview
         </DialogTitle>
         <DialogContent dividers>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 3 }}>
-            <Avatar sx={{ bgcolor: theme.palette.primary.main, width: 64, height: 64, fontSize: 28, fontWeight: 'bold' }}>
-              {(profile?.name || profile?.full_name || profile?.email || '').charAt(0).toUpperCase()}
+          <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', mb: 2 }}>
+            {/* Avatar with uploaded or profile image */}
+            <Avatar
+              src={imgPreview || (profile?.img ? `http://localhost:8000/uploads/${profile.img}` : undefined)}
+              sx={{ width: 80, height: 80, mb: 1, bgcolor: theme.palette.error.main }}
+            >
+              {profile?.name?.charAt(0)?.toUpperCase()}
             </Avatar>
-            <Box>
-              <Typography variant="h6" sx={{ color: theme.palette.text.primary }}>{profile?.name || profile?.full_name || profile?.email}</Typography>
-              <Typography
-                variant="body2"
-                sx={{
-                  fontWeight: 600,
-                  color: theme.palette.success.main,
-                  textTransform: 'uppercase',
-                  letterSpacing: 0.5,
-                }}
+            {/* Image upload input */}
+            <Button
+              variant="outlined"
+              component="label"
+              sx={{ mb: 1 }}
+              disabled={imgUploadLoading}
+            >
+              {selectedImg ? 'Change Photo' : 'Upload Photo'}
+              <input type="file" accept="image/*" hidden onChange={handleImgChange} />
+            </Button>
+            {selectedImg && (
+              <Button
+                variant="contained"
+                color="primary"
+                onClick={handleImgUpload}
+                disabled={imgUploadLoading}
+                sx={{ mb: 1 }}
               >
-                Role: {profile?.role}
-              </Typography>
-              <Typography variant="body2" sx={{ color: theme.palette.text.secondary }}>{profile?.email}</Typography>
-            </Box>
+                {imgUploadLoading ? 'Uploading...' : 'Save Photo'}
+              </Button>
+            )}
+            {imgUploadError && <Alert severity="error">{imgUploadError}</Alert>}
           </Box>
           {loadingProfile ? (
             <Typography sx={{ my: 2 }}>Loading profile...</Typography>
@@ -438,8 +517,88 @@ const UserHeader: React.FC<UserHeaderProps> = ({
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setProfileDialogOpen(false)} sx={{ color: theme.palette.error.main }}>Close</Button>
+          <Button onClick={() => setUpdateDialogOpen(true)} color="error" variant="contained" sx={{ ml: 2, fontWeight: 700 }}>
+            Update 
+          </Button>
         </DialogActions>
       </Dialog>
+      {/* Update User Information Dialog */}
+      <Dialog open={updateDialogOpen} onClose={() => setUpdateDialogOpen(false)} fullWidth maxWidth="xs">
+        <DialogTitle sx={{ fontWeight: 'bold', color: 'red', textAlign: 'center', letterSpacing: 1, fontSize: 20 }}>
+          Update 
+        </DialogTitle>
+        <DialogContent dividers>
+          {updateError && <Alert severity="error" sx={{ mb: 2 }}>{updateError}</Alert>}
+          {updateSuccess && <Alert severity="success" sx={{ mb: 2 }}>{updateSuccess}</Alert>}
+          <Box component="form" noValidate sx={{ mt: 1, display: 'flex', flexDirection: 'column', gap: 2 }}>
+            <TextField
+              label="Name"
+              value={updateForm.name}
+              onChange={e => setUpdateForm(f => ({ ...f, name: e.target.value }))}
+              fullWidth
+              required
+            />
+            <TextField
+              label="Full Name"
+              value={updateForm.full_name}
+              onChange={e => setUpdateForm(f => ({ ...f, full_name: e.target.value }))}
+              fullWidth
+            />
+            <TextField
+              label="Phone Number"
+              value={updateForm.number}
+              onChange={e => setUpdateForm(f => ({ ...f, number: e.target.value }))}
+              fullWidth
+            />
+            <TextField
+              label="Email"
+              value={updateForm.email}
+              onChange={e => setUpdateForm(f => ({ ...f, email: e.target.value }))}
+              fullWidth
+              required
+              type="email"
+            />
+          </Box>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setUpdateDialogOpen(false)} color="inherit" sx={{ fontWeight: 700 }}>Cancel</Button>
+          <Button
+            onClick={async () => {
+              setUpdateLoading(true);
+              setUpdateError(null);
+              setUpdateSuccess(null);
+              try {
+                if (!user?.id) {
+                  setUpdateError('User not found. Please log in again.');
+                  setUpdateLoading(false);
+                  return;
+                }
+                const res = await axios.put(
+                  `http://localhost:8000/api/users/${user.id}`,
+                  updateForm,
+                  { headers: { Authorization: `Bearer ${token}` } }
+                );
+                setUpdateSuccess('User updated successfully!');
+                setProfile(res.data.user);
+                setTimeout(() => {
+                  setUpdateDialogOpen(false);
+                }, 1000);
+              } catch (err: any) {
+                setUpdateError(err?.response?.data?.message || 'Update failed');
+              } finally {
+                setUpdateLoading(false);
+              }
+            }}
+            color="primary"
+            variant="contained"
+            disabled={updateLoading}
+            sx={{ fontWeight: 700 }}
+          >
+            {updateLoading ? 'Saving...' : 'Save Changes'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
       {/* Change Password Dialog */}
       <Dialog open={changePasswordDialogOpen} onClose={() => setChangePasswordDialogOpen(false)} fullWidth maxWidth="xs">
         <DialogTitle sx={{ fontWeight: 'bold', color: '#b71c1c', textAlign: 'center', letterSpacing: 1, fontSize: 22, textShadow: '0 2px 8px rgba(183,28,28,0.15)' }}>

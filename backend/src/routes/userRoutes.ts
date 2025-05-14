@@ -9,7 +9,8 @@ import {
   resetPassword,
   getUsersByRole,
   deleteUser,
-  changePassword
+  changePassword,
+  createUser
 } from '../controllers/userController';
 import { PrismaClient } from '@prisma/client';
 const prisma = new PrismaClient();
@@ -72,6 +73,10 @@ router.patch('/:id/change-password', asyncHandler(async (req: Request, res: Resp
     next(error);
   }
 }));
+
+
+router.post('/register', createUser);
+
 
 // Auth routes
 router.post('/login', asyncHandler(async (req: Request, res: Response, next: NextFunction) => {

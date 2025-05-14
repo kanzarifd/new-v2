@@ -50,7 +50,12 @@ const Login = () => {
     try {
       const credentials: LoginCredentials = { email, password };
       const { token, user } = await loginUser(credentials);
-      login({ id: user.id, email: user.email, role: user.role }, token);
+      // Fetch full user profile (with image)
+      const profileRes = await fetch(`http://localhost:8000/api/users/${user.id}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      const fullProfile = await profileRes.json();
+      login(fullProfile, token);
       navigate(user.role === 'admin' ? '/admin' : '/user', { replace: true });
     } catch (err: any) {
       console.error('Login error:', err);

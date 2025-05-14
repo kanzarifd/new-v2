@@ -11,6 +11,18 @@ interface RegisterData {
   bank_account_balance: string;
 }
 
+interface Data {
+  name: string;
+  full_name: string;
+  number: string;
+  email: string;
+  password: string;
+  bank_account_number: string;
+  bank_account_balance: string;
+  role: string; // <- required for createUser
+}
+
+
 interface LoginData {
   email: string;
   password: string;
@@ -64,6 +76,48 @@ export const registerUser = async (userData: RegisterData) => {
     }
   }
 };
+
+// Admin create user API call (with role selection)
+export const createUser = async (userData: Data) => {
+  try {
+    const balance = parseFloat(userData.bank_account_balance);
+    if (isNaN(balance) || balance < 0) {
+      throw new Error('Please enter a valid number for bank account balance');
+    }
+
+    const body = {
+      ...userData,
+      bank_account_balance: balance
+    };
+
+    console.log('Sending create user request to:', api.defaults.baseURL + '/api/users');
+    console.log('Request body:', body);
+
+    const response = await api.post('/api/users', body);
+    console.log('Create user response:', response.data);
+    return response.data;
+
+  } catch (error: any) {
+    console.error('Create user error:', {
+      message: error.message,
+      response: error.response?.data,
+      status: error.response?.status
+    });
+
+    if (error.response?.data?.errors) {
+      throw new Error(JSON.stringify(error.response.data.errors));
+    } else if (error.response?.data?.message) {
+      throw new Error(error.response.data.message);
+    } else if (error.response?.data?.error) {
+      throw new Error(error.response.data.error.message);
+    } else if (error.response?.data?.detail) {
+      throw new Error(error.response.data.detail);
+    } else {
+      throw new Error('Creating user failed. Please try again.');
+    }
+  }
+};
+
 
 // Login API call
 export const loginUser = async (credentials: LoginData) => {

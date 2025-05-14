@@ -25,6 +25,7 @@ model User {
   isVerified            Boolean? @default(false)
   resetToken            String?  @db.VarChar(255)
   resetTokenExpiry     DateTime?
+  img                  String?   // URL or path to the user's profile image
 }
 
 model Reclam {
@@ -51,9 +52,19 @@ model Region {
   date_debut DateTime
   date_fin   DateTime
   reclam     Reclam[]
+}
+
+model Banc {
+  id        Int    @id @default(autoincrement())
+  cin       String
+  name      String
+  full_name String
+
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
 }
+
+
 
 enum Role {
   user

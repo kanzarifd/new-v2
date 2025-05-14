@@ -4,6 +4,7 @@ interface User {
   id: string;
   email: string;
   role: 'admin' | 'user';
+  img?: string;
   name?: string;
   full_name?: string;
   number?: string;

@@ -1,9 +1,11 @@
-import { Request, Response } from 'express';
+import { Request, Response, NextFunction } from 'express';
 
 export const errorHandler = (
   err: any,
   _req: Request,
-  res: Response) => {
+  res: Response,
+  _next: NextFunction
+) => {
   try {
     // Log the error
     console.error('Error occurred:', {

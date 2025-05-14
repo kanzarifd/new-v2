@@ -988,6 +988,7 @@ const ReclamCard = ({ reclam, onEdit, onDelete }: {
         </Box>
       </CardContent>
     </Card>
+    
   );
 };
 

@@ -9,8 +9,9 @@ import { router as userRoutes } from './routes/userRoutes';
 import searchRoutes from './routes/searchRoutes';
 import { router as reclamRoutes } from './routes/reclamRoutes';
 import { router as regionRoutes } from './routes/regionRoutes';
+import uploadRoutes from './routes/uploadRoutes';
+import bancRoutes from './routes/bancRoutes'; // ✅ keep only this
 
-// Load environment variables
 dotenv.config();
 
 const app = express();
@@ -19,15 +20,16 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-// Serve static files from uploads directory
-app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
-
 // Routes
 app.use('/api/users', userRoutes);
-// Mount search before dynamic routes to avoid shadowing
-app.use('/api/reclams/search', searchRoutes);
+app.use('/api/upload', uploadRoutes);
+app.use('/api/reclams/search', searchRoutes); // mount before /api/reclams
 app.use('/api/reclams', reclamRoutes);
 app.use('/api/regions', regionRoutes);
+app.use('/api/banc', bancRoutes); // ✅ only once
+
+// Static folder
+app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
 
 // Error handling
 app.use(errorHandler);

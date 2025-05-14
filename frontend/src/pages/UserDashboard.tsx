@@ -49,6 +49,8 @@ import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import { format } from 'date-fns';
 import UserHeader from './UserHeader';
+import FooterHTML from '../components/FooterHTML';
+
 
 interface Reclam {
   id: number;
@@ -489,6 +491,8 @@ const UserDashboard = () => {
   };
 
   const openChat = () => {
+    setChatOpen(true); // Open the chat panel
+  
     setChatOpen(true);
   };
 
@@ -515,6 +519,7 @@ const UserDashboard = () => {
           toggleDrawer={toggleDrawer}
           onLogout={handleLogout}
           onOpenChat={openChat} isMobile={false}      />
+      {chatOpen && <ChatbotPanel isOpen={chatOpen} onClose={() => setChatOpen(false)} />}
 
       {/* Reclamation View Modal */}
 
@@ -522,7 +527,7 @@ const UserDashboard = () => {
 
       {/* Summary Cards */}
       <Box sx={{ display: 'flex', gap: 2, mb: 3 }}>
-        {[
+        {[ 
           { label: 'Total Requests', value: reclams.length },
           { label: 'Pending', value: reclams.filter(r => r.status === 'pending').length },
           { label: 'Resolved', value: reclams.filter(r => r.status === 'resolved').length }
@@ -1564,7 +1569,8 @@ const UserDashboard = () => {
       />
     )}
 
-    <ChatbotPanel isOpen={chatOpen} onClose={() => setChatOpen(false)} />
+   
+    <FooterHTML />
     </>
   );
 };

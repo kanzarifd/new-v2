@@ -1,0 +1,94 @@
+.footer-container {
+  background-color: #1e1e1e;
+  color: #ffffff;
+  font-family: 'Arial', sans-serif;
+  padding: 40px 20px 10px;
+}
+.vintage-heading {
+  font-family: 'Stardos Stencil', serif;
+  font-weight: 700;
+  font-size: 24px;
+  color: #f3f3f3; /* deep red */
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.footer-content {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+}
+
+.footer-left {
+  flex: 1;
+  min-width: 300px;
+  margin-right: 20px;
+}
+
+.social-media-icons a {
+  color: #b71c1c;
+  font-size: 24px;
+  margin-right: 20px;
+  transition: color 0.3s ease;
+}
+
+.social-media-icons a:hover {
+  color: #7f1010;
+}
+
+.footer-left h2 {
+  margin-bottom: 20px;
+  font-size: 20px;
+}
+
+.map-container iframe {
+  width: 100%;
+  height: 250px;
+  border: none;
+  border-radius: 6px;
+}
+
+.footer-right {
+  flex: 1;
+  min-width: 250px;
+  display: flex;
+  flex-direction: column;
+  gap: 30px;
+}
+
+.useful-links h3,
+.opening-hours h3 {
+  font-size: 16px;
+  margin-bottom: 10px;
+}
+
+.useful-links ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.useful-links ul li {
+  margin-bottom: 5px;
+}
+
+.useful-links ul li a {
+  color: #ff5c5c;
+  text-decoration: none;
+}
+
+.useful-links ul li a:hover {
+  text-decoration: underline;
+}
+
+.opening-hours p {
+  margin: 5px 0;
+  font-size: 14px;
+}
+
+.footer-bottom {
+  text-align: center;
+  padding-top: 30px;
+  font-size: 13px;
+  color: #ccc;
+}

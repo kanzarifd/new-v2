@@ -67,6 +67,7 @@ import CreateUserDialog from '../components/CreateUserDialog';
 import EditUserDialog from '../components/EditUserDialog';
 
 import { styled } from '@mui/material/styles';
+import FooterHTML from '../components/FooterHTML';
 
 interface RegionFormData {
   name: string;
@@ -500,6 +501,7 @@ const AdminDashboard = () => {
   };
 
   return (
+    
     <Box sx={{ display: 'flex', minHeight: '100vh', backgroundColor: theme.palette.background.default, color: theme.palette.text.primary }}>
       <AdminSidebar
         activeSection={activeSection}
@@ -839,11 +841,7 @@ const AdminDashboard = () => {
                                         <span style={{ color: '#aaa' }}>No Attachment</span>
                                       )}
                                     </StyledTableCell>
-                                    <StyledTableCell>
-                                      <IconButton size="small" onClick={() => handleOpen(reclam)}>
-                                        <EditIcon />
-                                      </IconButton>
-                                    </StyledTableCell>
+                                    <StyledTableCell />
                                   </StyledTableRow>
                                 );
                               })}
@@ -1115,7 +1113,7 @@ const AdminDashboard = () => {
                     Loading user data...
                   </Typography>
                 </Box>
-              ) : (
+              ) : ( 
                 <StyledTableContainer>
                   <Table>
                     <TableHead>
@@ -1225,7 +1223,9 @@ const AdminDashboard = () => {
                   value={formData.name}
                   onChange={handleChange}
                 />
-                <LocalizationProvider dateAdapter={AdapterDateFns}>
+                <LocalizationProvider dateAdapter={AdapterDateFns}>  
+
+
                   <MuiDatePicker
                     label="Start Date"
                     value={formData.date_debut ? new Date(formData.date_debut) : null}
@@ -1337,9 +1337,11 @@ const AdminDashboard = () => {
             </Button>
           </DialogActions>
         </Dialog>
-      </Box>
+      </Box>  
+
     </Box>
+    
   );
 };
 
-export default AdminDashboard;
+export default AdminDashboard; 

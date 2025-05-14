@@ -3,12 +3,14 @@ import api from '../config/api';
 import { BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 import { CheckCircle as CheckIcon, Pending as PendingIcon, Close as CloseIcon } from '@mui/icons-material';
 import { Paper, Typography, Box, Grid, CircularProgress, Alert, useTheme, TableContainer, Table as MuiTable, TableHead, TableBody, TableRow, TableCell, Avatar, IconButton, TableSortLabel, Chip, ChipProps, Dialog, DialogTitle, DialogContent, DialogActions, TextField, Select, MenuItem, Button, FormControl, InputLabel, Checkbox, TablePagination } from '@mui/material';
+import PrintIcon from '@mui/icons-material/Print';
 import { styled } from '@mui/material/styles';
 import { Search, CheckCircle, Error as ErrorIcon, Edit } from '@mui/icons-material';
 import { format } from 'date-fns';
 import { ChartData } from '../types/dashboard';
 import { Reclam } from './types';
 import AttachmentPreviewDialog from './AttachmentPreviewDialog';
+import ReclamationDetailsDialog from './ReclamationDetailsDialog';
 
 // ATB Red Gradient Theme
 const COLORS = ['#e53935', '#ef5350', '#f44336', '#b71c1c'];
@@ -20,6 +22,24 @@ interface AdminDashboardStatsProps {
 }
 
 const AdminDashboardStats = ({ reclamations, onEdit }: AdminDashboardStatsProps) => {
+  const tableRef = React.useRef<HTMLDivElement>(null);
+  const handlePrintTable = () => {
+    if (!tableRef.current) return;
+    const printContents = tableRef.current.innerHTML;
+    const printWindow = window.open('', '', 'height=700,width=1000');
+    if (printWindow) {
+      printWindow.document.write('<html><head><title>Reclamations Table</title>');
+      printWindow.document.write('<style>body{font-family:sans-serif;margin:0;padding:24px;} table{border-collapse:collapse;width:100%;} th,td{border:1px solid #ddd;padding:8px;} th{background:#e53935;color:#fff;} </style>');
+      printWindow.document.write('</head><body >');
+      printWindow.document.write(printContents);
+      printWindow.document.write('</body></html>');
+      printWindow.document.close();
+      printWindow.focus();
+      printWindow.print();
+      printWindow.close();
+    }
+  };
+
   const theme = useTheme();
   const [dataBar, setDataBar] = useState<ChartData[]>([]);
   const [dataPie, setDataPie] = useState<ChartData[]>([]);
@@ -159,6 +179,10 @@ const AdminDashboardStats = ({ reclamations, onEdit }: AdminDashboardStatsProps)
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(5);
+
+  // State for details dialog
+  const [detailsDialogOpen, setDetailsDialogOpen] = useState(false);
+  const [selectedReclam, setSelectedReclam] = useState<Reclam | null>(null);
 
   const handleSelect = (id: number) => {
     setSelected(prev => prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]);
@@ -339,39 +363,37 @@ const AdminDashboardStats = ({ reclamations, onEdit }: AdminDashboardStatsProps)
                     <Cell key={`cell-pie-${index}`} fill={COLORS[index % COLORS.length]} />
                   ))}
                 </Pie>
-                <Tooltip contentStyle={{ background: '#111', color: '#e53935', border: '1px solid #e53935', borderRadius: 8 }} labelStyle={{ color: '#e53935', fontWeight: 700 }} />
+                <Tooltip contentStyle={{ background: '#fff', color: '#e53935', border: '1px solid #e53935', borderRadius: 8 }} labelStyle={{ color: '#e53935', fontWeight: 700 }} />
               </PieChart>
             </ResponsiveContainer>
           </Paper>
         </Grid>
       </Grid>
 
-      <Paper sx={{ mt: 4, p: 2 }}>
-        <Box display="flex" justifyContent="center" alignItems="center" p={2}>
-          <Typography
-            variant="h6"
-            sx={{
-              fontWeight: 'bold',
-              color: '#b71c1c',
-              letterSpacing: 1,
-              fontSize: '1.5rem',
-              cursor: 'pointer',
-              transition: 'transform 0.2s, box-shadow 0.2s, color 0.2s',
-              '&:hover': {
-                color: '#e53935',
-                transform: 'scale(1.04)',
-                boxShadow: 3,
-              },
-              borderRadius: 2,
-              px: 3,
-              py: 1,
-              background: 'rgba(229, 57, 53, 0.07)',
-            }}
-            align="center"
-          >
-            Recent Reclamations
-          </Typography>
-        </Box>
+      <Paper sx={{ mt: 4, p: 2 }} ref={tableRef}>
+      <Typography
+      variant="h6"
+      sx={{
+        fontWeight: 'bold',
+        color: '#b71c1c',
+        letterSpacing: 1,
+        fontSize: '1.5rem',
+        cursor: 'pointer',
+        transition: 'transform 0.2s, box-shadow 0.2s, color 0.2s',
+        '&:hover': {
+          color: '#e53935',
+          transform: 'scale(1.04)',
+          boxShadow: 3,
+        },
+        borderRadius: 2,
+        px: 3,
+        py: 1,
+        background: 'rgba(229, 57, 53, 0.07)',
+      }}
+      align="center"
+    >
+        Recent Reclamations
+      </Typography>
         <TextField
           variant="standard"
           placeholder="Search..."
@@ -412,7 +434,15 @@ const AdminDashboardStats = ({ reclamations, onEdit }: AdminDashboardStatsProps)
                   <TableCell>{reclam.id}</TableCell>
                   <TableCell>{format(new Date(reclam.date_debut), 'dd MMM yyyy')}</TableCell>
                   <TableCell>
-                    <span style={{ color: '#1976d2', cursor: 'pointer' }}>{reclam.title}</span>
+                    <span
+                      style={{ color: '#1976d2', cursor: 'pointer', textDecoration: 'underline' }}
+                      onClick={() => {
+                        setSelectedReclam(reclam);
+                        setDetailsDialogOpen(true);
+                      }}
+                    >
+                      {reclam.title}
+                    </span>
                   </TableCell>
                   <TableCell>{reclam.user?.name || reclam.userId}</TableCell>
                   <TableCell>{reclam.currentAgency || '-'}</TableCell>
@@ -455,6 +485,13 @@ const AdminDashboardStats = ({ reclamations, onEdit }: AdminDashboardStatsProps)
         />
       </Paper>
 
+      {/* Reclamation Details Dialog */}
+      <ReclamationDetailsDialog
+        open={detailsDialogOpen}
+        onClose={() => setDetailsDialogOpen(false)}
+        reclam={selectedReclam}
+      />
+
       {/* Edit Reclamation Dialog */}
       <Dialog open={editDialogOpen} onClose={() => setEditDialogOpen(false)} maxWidth="sm" fullWidth>
         <DialogTitle>Edit Reclamation</DialogTitle>
@@ -477,7 +514,52 @@ const AdminDashboardStats = ({ reclamations, onEdit }: AdminDashboardStatsProps)
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setEditDialogOpen(false)}>Cancel</Button>
-          <Button onClick={async () => { if (editData) { await api.put(`/api/reclams/${editData.id}`, editData); setEditDialogOpen(false); window.location.reload(); } }} color="primary">Save</Button>
+          <Button onClick={async () => {
+  if (!editData) return;
+  // Validate required fields
+  const requiredFields = [
+    'title', 'description', 'status', 'priority', 'date_debut'
+  ];
+  for (const field of requiredFields) {
+    if (!editData[field as keyof typeof editData]) {
+      alert(`Missing required field: ${field}`);
+      return;
+    }
+  }
+  const regionId = editData.regionId || editData.region?.id;
+  const userId = editData.userId || editData.user?.id;
+  if (!regionId) {
+    alert('Missing required field: regionId');
+    return;
+  }
+  if (!userId) {
+    alert('Missing required field: userId');
+    return;
+  }
+  try {
+    await api.put(`/api/reclams/${editData.id}`, {
+      title: editData.title,
+      description: editData.description,
+      status: editData.status,
+      priority: editData.priority,
+      date_debut: editData.date_debut,
+      date_fin: editData.date_fin || undefined,
+      regionId,
+      userId,
+      currentAgency: editData.currentAgency || undefined,
+      attachment: editData.attachment || undefined,
+    });
+    setEditDialogOpen(false);
+    window.location.reload();
+  } catch (error: any) {
+    if (error.response && error.response.data) {
+      alert('Error: ' + (error.response.data.error || JSON.stringify(error.response.data)));
+    } else {
+      alert('Unknown error occurred');
+    }
+    console.error('PUT error:', error);
+  }
+}} color="primary">Save</Button>
         </DialogActions>
       </Dialog>
 

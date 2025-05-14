@@ -17,13 +17,13 @@ export const addUser = async (req: Request, res: Response) => {
     // Log incoming request
     console.log('Incoming registration request:', JSON.stringify(req.body, null, 2));
     
-    const { name, full_name, number, email, password, bank_account_number, bank_account_balance } = req.body;
+    const { name, full_name, number, email, password, bank_account_number, bank_account_balance, role } = req.body;
 
     // Log field validation
     console.log('Validating required fields...');
     
     // Validate required fields
-    if (!name || !full_name || !number || !email || !password || !bank_account_number || bank_account_balance === undefined) {
+    if (!name || !full_name || !number || !email || !password || !bank_account_number || bank_account_balance === undefined || !role) {
       console.log('Missing required fields:', {
         name: !name,
         full_name: !full_name,
@@ -109,14 +109,20 @@ export const addUser = async (req: Request, res: Response) => {
     // Hash password
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    // Log user creation
+    // Check if the role is valid
+    const allowedRoles = ['user', 'admin']; // Example roles
+    if (!allowedRoles.includes(role)) {
+      return res.status(400).json({ message: 'Invalid role' });
+    }
+
+    // Proceed with user creation
     console.log('Creating user...');
     
     // Create user
     const user = await prisma.user.create({
       data: {
         name,
-        full_name,
+        full_name, 
         number,
         email,
         password: hashedPassword,
@@ -165,7 +171,6 @@ export const getAllUsers = async (_req: Request, res: Response) => {
         bank_account_number: true,
         bank_account_balance: true,
         role: true,
-        img: true,
       }
     });
     return res.json(users);
@@ -189,7 +194,6 @@ export const getUserById = async (req: Request, res: Response) => {
         bank_account_number: true,
         bank_account_balance: true,
         role: true,
-        img: true,
       }
     });
 
@@ -203,6 +207,7 @@ export const getUserById = async (req: Request, res: Response) => {
     return res.status(500).json({ message: 'Internal server error' });
   }
 };
+
 
 export const updateUser = async (req: Request, res: Response) => {
   try {
@@ -532,194 +537,135 @@ export const resendVerification = async (req: Request, res: Response) => {
       console.error('Email sending failed:', emailError);
       return res.status(500).json({ message: 'Failed to send verification email' });
     }
+  } catch (err: any) {
+    console.error('Resend verification error:', err);
+    return res.status(500).json({ message: 'Internal server error' });
   }
-
-  // Find user by email
-  const user = await prisma.user.findUnique({
-    where: { email },
-    select: {
-      id: true,
-      resetToken: true,
-      resetTokenExpiry: true
-    }
-  });
-
-  if (!user) {
-    return res.status(404).json({ message: 'User not found' });
-  }
-
-  if (user.resetToken) {
-    return res.status(400).json({ message: 'Account is already verified' });
-  }
-
-  // Generate new verification token
-  const verificationToken = crypto.randomBytes(32).toString('hex');
-
-  // Update user with new verification token
-  await prisma.user.update({
-    where: { id: user.id },
-    data: {
-      resetToken: verificationToken,
-      resetTokenExpiry: new Date(Date.now() + 3600000) // 1 hour from now
-    }
-  });
-
-  // Send verification email
-  try {
-    const transporter = nodemailer.createTransport({
-      service: 'gmail',
-      auth: {
-        user: process.env.EMAIL_USER,
-        pass: process.env.EMAIL_PASS
-      }
-    });
-
-    const verificationUrl = `${process.env.FRONTEND_URL}/verify-account?token=${verificationToken}`;
-
-    await transporter.sendMail({
-      from: process.env.EMAIL_USER,
-      to: email,
-      subject: 'Account Verification Request',
-      html: `
-        <h2>Account Verification Request</h2>
-        <p>Click the link below to verify your account:</p>
-        <a href="${verificationUrl}">${verificationUrl}</a>
-      `
-    });
-
-    return res.status(200).json({ message: 'Verification email sent' });
-  } catch (emailError) {
-    console.error('Email sending failed:', emailError);
-    return res.status(500).json({ message: 'Failed to send verification email' });
-  }
-} catch (err: any) {
-  console.error('Resend verification error:', err);
-  return res.status(500).json({ message: 'Internal server error' });
-}
 };
 export const deleteUser = async (req: Request, res: Response) => {
-try {
-  const { id } = req.params;
+  try {
+    const { id } = req.params;
 
-  const existingUser = await prisma.user.findUnique({ where: { id: Number(id) } });
+    const existingUser = await prisma.user.findUnique({ where: { id: Number(id) } });
 
-  if (!existingUser) {
-    return res.status(404).json({ message: 'User not found' });
+    if (!existingUser) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    await prisma.user.delete({
+      where: { id: Number(id) }
+    });
+
+    return res.status(200).json({ message: 'User deleted successfully' });
+  } catch (err: any) {
+    console.error('Error deleting user:', err);
+    return res.status(500).json({ message: 'Internal server error' });
   }
-
-  await prisma.user.delete({
-    where: { id: Number(id) }
-  });
-
-  return res.status(200).json({ message: 'User deleted successfully' });
-} catch (err: any) {
-  console.error('Error deleting user:', err);
-  return res.status(500).json({ message: 'Internal server error' });
-}
 };
 
-export const getUserById = async (req: Request, res: Response) => {
-try {
-  const { id } = req.params;
+export const changePassword = async (req: Request, res: Response) => {
+  const userId = parseInt(req.params.id);
+  const { currentPassword, newPassword } = req.body;
 
-  const user = await prisma.user.findUnique({
-    where: { id: Number(id) },
-    include: {
-      region: {
-        select: {
-          id: true,
-          name: true
-        }
-      }
-    }
-  });
-
-  if (!user) {
-    return res.status(404).json({ message: 'User not found' });
+  if (!currentPassword || !newPassword) {
+    return res.status(400).json({ error: 'Current and new passwords are required.' });
   }
 
-  return res.json(user);
-} catch (error: any) {
-  console.error('Error fetching user:', error);
-  return res.status(500).json({ error: error.message });
-}
+  try {
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+    });
+
+    if (!user) {
+      return res.status(404).json({ error: 'User not found.' });
+    }
+
+    const isMatch = await bcrypt.compare(currentPassword, user.password);
+    if (!isMatch) {
+      return res.status(400).json({ error: 'Current password is incorrect.' });
+    }
+
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+
+    await prisma.user.update({
+      where: { id: userId },
+      data: { password: hashedPassword },
+    });
+
+    return res.status(200).json({ message: 'Password changed successfully.' });
+  } catch (error) {
+    console.error('Error changing password:', error);
+    return res.status(500).json({ error: 'Internal server error.' });
+  }
+};
+export const createUser = async (req: Request, res: Response) => {
+  try {
+    const {
+      name,
+      full_name,
+      number,
+      email,
+      password,
+      bank_account_number,
+      bank_account_balance,
+      role
+    } = req.body;
+
+    // Validate required fields
+    if (
+      !name || !full_name || !number || !email || !password ||
+      !bank_account_number || !bank_account_balance || !role
+    ) {
+      return res.status(400).json({ message: 'All fields are required.' });
+    }
+
+    // Check if user already exists
+    const existingUser = await prisma.user.findUnique({
+      where: { email }
+    });
+
+    if (existingUser) {
+      return res.status(400).json({ message: 'Email already in use.' });
+    }
+
+    // Hash password
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    // Create user
+    const newUser = await prisma.user.create({
+      data: {
+        name,
+        full_name,
+        number,
+        email,
+        password: hashedPassword,
+        bank_account_number,
+        bank_account_balance: parseFloat(bank_account_balance),
+        role
+      }
+    });
+
+    res.status(201).json({ message: 'User created successfully', user: newUser });
+  } catch (error) {
+    console.error('Error creating user:', error);
+    res.status(500).json({ message: 'Internal server error' });
+  }
 };
 
 export const getUsersByRole = async (req: Request, res: Response, role: Prisma.UserRoleFilter) => {
-try {
-  const users = await prisma.user.findMany({
-    where: {
-      role
-    },
-    include: {
-      region: {
-        select: {
-          id: true,
-          name: true
-        }
-      }
-    },
-    orderBy: {
-      createdAt: 'desc'
-    }
-  });
-
-  return res.json(users);
-} catch (error: any) {
-  console.error('Error in getUsersByRole:', error);
-  return res.status(500).json({ error: error.message });
-}
-};
-
-export const getAllUsers = async (_req: Request, res: Response) => {
-try {
-  const users = await prisma.user.findMany({
-    include: {
-      region: {
-        select: {
-          id: true,
-          name: true
-        }
-      }
-    }
-  });
-
-  return res.json(users);
-} catch (error: any) {
-  console.error('Error fetching users:', error);
-  return res.status(500).json({ error: error.message });
-}
-};
-
-// Change password controller
-export const changePassword = async (req: Request, res: Response) => {
-const { id } = req.params;
-const { currentPassword, newPassword } = req.body;
-if (!currentPassword || !newPassword) {
-  return res.status(400).json({ message: 'Current and new password are required.' });
-}
-try {
-  const user = await prisma.user.findUnique({ where: { id: Number(id) } });
-  if (!user) {
-    return res.status(404).json({ message: 'User not found.' });
-  const { id } = req.params;
-  const { currentPassword, newPassword } = req.body;
-  if (!currentPassword || !newPassword) {
-    return res.status(400).json({ message: 'Current and new password are required.' });
-  }
   try {
-    const user = await prisma.user.findUnique({ where: { id: Number(id) } });
-    if (!user) {
-      return res.status(404).json({ message: 'User not found.' });
-    }
-    const passwordMatch = await bcrypt.compare(currentPassword, user.password);
-    if (!passwordMatch) {
-      return res.status(401).json({ message: 'Current password is incorrect.' });
-    }
-    const hashedPassword = await bcrypt.hash(newPassword, 10);
-    await prisma.user.update({ where: { id: Number(id) }, data: { password: hashedPassword } });
-    return res.json({ message: 'Password changed successfully.' });
-  } catch (error) {
-    return res.status(500).json({ message: 'Failed to change password.', error: error.message });
+    const users = await prisma.user.findMany({
+      where: {
+        role
+      },
+      orderBy: {
+        createdAt: 'desc'
+      }
+    });
+
+    return res.json(users);
+  } catch (error: any) {
+    console.error('Error in getUsersByRole:', error);
+    return res.status(500).json({ error: error.message });
   }
 };

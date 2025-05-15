@@ -8,25 +8,29 @@ datasource db {
 }
 
 model User {
-  id                    Int     @id @default(autoincrement())
-  name                  String
-  full_name             String
-  number                String
-  email                 String   @unique
-  password              String
-  role                  Role     @default(user)
-  bank_account_number   String
-  bank_account_balance  Float
-  reclam                Reclam[]
-  createdAt             DateTime @default(now())
-  updatedAt             DateTime @updatedAt
-  verificationCode     String?  @db.VarChar(255)
+  id                      Int       @id @default(autoincrement())
+  name                    String
+  full_name               String
+  number                  String
+  email                   String    @unique
+  password                String
+  role                    Role      @default(user)
+  bank_account_number     String
+  reclam                  Reclam[]
+  createdAt               DateTime  @default(now())
+  updatedAt               DateTime  @updatedAt
+  verificationCode        String?   @db.VarChar(255)
   verificationCodeExpires DateTime?
-  isVerified            Boolean? @default(false)
-  resetToken            String?  @db.VarChar(255)
-  resetTokenExpiry     DateTime?
-  img                  String?   // URL or path to the user's profile image
+  isVerified              Boolean?  @default(false)
+  resetToken              String?   @db.VarChar(100) @unique
+  resetTokenExpiry        DateTime?
+  img                     String?   // URL or path to the user's profile image
+
+  region_id               Int?
+  region                  Region?   @relation(fields: [region_id], references: [id])
 }
+
+
 
 model Reclam {
   id          Int       @id @default(autoincrement())
@@ -50,8 +54,9 @@ model Region {
   id         Int      @id @default(autoincrement())
   name       String
   date_debut DateTime
-  date_fin   DateTime
   reclam     Reclam[]
+
+  User User[]
 }
 
 model Banc {

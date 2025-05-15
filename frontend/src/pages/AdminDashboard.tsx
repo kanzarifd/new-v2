@@ -44,6 +44,7 @@ import {
   Assignment as AssignmentIcon,
   Edit as EditIcon,
   Delete as DeleteIcon,
+  Add as AddIcon,
   Logout as LogoutIcon,
   Menu as MenuIcon,
   CalendarToday as CalendarTodayIcon,
@@ -72,7 +73,6 @@ import FooterHTML from '../components/FooterHTML';
 interface RegionFormData {
   name: string;
   date_debut: string;
-  date_fin: string
 }
 
 interface Region extends RegionFormData {
@@ -152,7 +152,7 @@ const AdminDashboard = () => {
 
   // Existing state
   const [open, setOpen] = useState(false);
-  const [formData, setFormData] = useState<RegionFormData>({ name: '', date_debut: '', date_fin: '' });
+  const [formData, setFormData] = useState<RegionFormData>({ name: '', date_debut: format(new Date(), 'yyyy-MM-dd') });
   const [editingId, setEditingId] = useState<number | null>(null);
   const [regions, setRegions] = useState<Region[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -171,6 +171,13 @@ const AdminDashboard = () => {
   const [usersError, setUsersError] = useState<string | null>(null);
   const [reclamations, setReclamations] = useState([]);
 
+
+
+
+  const [isRegionDialogOpen, setIsRegionDialogOpen] = useState(false);
+const [regionFormData, setRegionFormData] = useState<RegionFormData>({ name: '', date_debut: format(new Date(), 'yyyy-MM-dd'), });
+const [regionError, setRegionError] = useState<string | null>(null);
+const [loadingRegions, setLoadingRegions] = useState(false);
   // User Creation Dialog State
   const [createUserOpen, setCreateUserOpen] = useState(false);
 
@@ -196,6 +203,7 @@ const AdminDashboard = () => {
     medium: 'warning',
     low: 'success'
   };
+  
 
   // Attachment preview dialog state for regions
   const [regionPreviewOpen, setRegionPreviewOpen] = useState(false);
@@ -221,6 +229,40 @@ const AdminDashboard = () => {
   const [deleteTargetRegion, setDeleteTargetRegion] = useState<any>(null);
   const [deleteRegionConfirmText, setDeleteRegionConfirmText] = useState('');
 
+
+// Agents
+const [updateAgentDialogOpen, setUpdateAgentDialogOpen] = useState(false);
+const [selectedAgent, setSelectedAgent] = useState<any | null>(null);
+const [selectedAgentRegion, setSelectedAgentRegion] = useState<number | null>(null);
+
+  const [agents, setAgents] = useState<any[]>([]);
+  const [loadingAgents, setLoadingAgents] = useState(false);
+  const [agentsError, setAgentsError] = useState<string | null>(null);
+
+
+  const handleCreateRegion = async () => {
+    if (!regionFormData.name || !regionFormData.date_debut) {
+      enqueueSnackbar('Please fill in all region details', { variant: 'error' });
+      return;
+    }
+    try {
+      setLoadingRegions(true);
+      const response = await axios.post('/api/regions', regionFormData);
+      setRegions([...regions, response.data]);
+      setIsRegionDialogOpen(false);
+      setRegionFormData({ name: '', date_debut: '' });
+      enqueueSnackbar('Region created successfully', { variant: 'success' });
+    } catch (err: any) {
+      setRegionError(err.response?.data?.message || 'Failed to create region');
+      enqueueSnackbar(err.response?.data?.message || 'Failed to create region', { variant: 'error' });
+    } finally {
+      setLoadingRegions(false);
+    }
+  };
+
+
+
+
   const handleLogout = () => {
     localStorage.clear();
     navigate('/login', { replace: true });
@@ -229,6 +271,56 @@ const AdminDashboard = () => {
   const toggleDrawer = () => {
     setDrawerOpen(!drawerOpen);
   };
+
+// agents 
+  const fetchAgents = async () => {
+    setLoadingAgents(true);
+    setAgentsError(null);
+  
+    try {
+      const response = await axios.get('http://localhost:8000/api/users/role/agent');
+      setAgents(response.data);
+    } catch (error: any) {
+      setAgentsError('Failed to load agents');
+    } finally {
+      setLoadingAgents(false);
+    }
+  };
+
+  useEffect(() => {
+    if (activeSection === 'agents') {
+      fetchAgents();
+    }
+  }, [activeSection]);
+  
+
+  const handleOpenUpdateRegion = (agent: any) => {
+    setSelectedAgent(agent);
+    setSelectedAgentRegion(agent.region_id || null);
+    setUpdateAgentDialogOpen(true);
+  };
+  
+
+  const handleUpdateAgentRegion = async () => {
+    if (!selectedAgent || selectedAgentRegion === null) return;
+    try {
+      await axios.put(`http://localhost:8000/api/users/agent/${selectedAgent.id}`, {
+        region_id: selectedAgentRegion,
+      });
+      enqueueSnackbar('Agent region updated successfully', { variant: 'success' });
+      fetchAgents(); // refresh agent list
+      setUpdateAgentDialogOpen(false);
+      setSelectedAgent(null);
+      setSelectedAgentRegion(null);
+    } catch (error) {
+      enqueueSnackbar('Failed to update agent region', { variant: 'error' });
+    }
+  };
+  
+  
+
+//regions 
+
 
   const fetchRegions = async () => {
     try {
@@ -255,18 +347,17 @@ const AdminDashboard = () => {
         setFormData({
           name: item.name,
           date_debut: item.date_debut,
-          date_fin: item.date_fin
         });
       } else {
         setEditingId(null);
-        setFormData({ name: '', date_debut: '', date_fin: '' });
+        setFormData({ name: '', date_debut: '' });
       }
     }
   };
 
   const handleClose = () => {
     setOpen(false);
-    setFormData({ name: '', date_debut: '', date_fin: '' });
+    setFormData({ name: '', date_debut: '' });
     setError(null);
     setEditingId(null);
   };
@@ -281,7 +372,6 @@ const AdminDashboard = () => {
     setError(null);
 
     const debutDateISO = new Date(formData.date_debut).toISOString();
-    const finDateISO = new Date(formData.date_fin).toISOString();
 
     try {
       const url = editingId
@@ -299,7 +389,6 @@ const AdminDashboard = () => {
         body: JSON.stringify({
           name: formData.name,
           date_debut: debutDateISO,
-          date_fin: finDateISO
         })
       });
 
@@ -502,21 +591,19 @@ const AdminDashboard = () => {
 
   return (
     
-    <Box sx={{ display: 'flex', minHeight: '100vh', backgroundColor: theme.palette.background.default, color: theme.palette.text.primary }}>
+    <><Box sx={{ display: 'flex', minHeight: '100vh', backgroundColor: theme.palette.background.default, color: theme.palette.text.primary }}>
       <AdminSidebar
         activeSection={activeSection}
         setActiveSection={setActiveSection}
         isMobile={isMobile}
         drawerOpen={drawerOpen}
-        setDrawerOpen={setDrawerOpen}
-      />
+        setDrawerOpen={setDrawerOpen} />
 
       <Box component="main" sx={{ flexGrow: 1, p: 3, backgroundColor: theme.palette.background.default, color: theme.palette.text.primary, minHeight: '100vh' }}>
         <AdminHeader
           toggleDrawer={toggleDrawer}
           onLogout={handleLogout}
-          isMobile={isMobile}
-        />
+          isMobile={isMobile} />
 
         {/* Main Content */}
         <Box sx={{ mt: '64px' }}>
@@ -525,7 +612,7 @@ const AdminDashboard = () => {
             <AdminDashboardStats reclamations={reclamations} onEdit={(r: Reclam) => {
               // Scroll to corresponding reclam anchor
               window.location.hash = `#reclam-${r.id}`;
-            }} />
+            } } />
           )}
 
           {/* Regions list */}
@@ -540,23 +627,24 @@ const AdminDashboard = () => {
                 boxShadow: '0 4px 6px rgba(222, 8, 8, 0.1)',
               }}
             >
-              <Box sx={{ mb: 3 }}>
-                <Typography
-                  variant="h5"
-                  component="h2"
-                  sx={{
-                    fontWeight: 600,
-                    color: '#e53935',
-                    mb: 1,
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 1,
-                  }}
-                >
-                  <LocationOnIcon sx={{ fontSize: 24, color: '#e53935' }} />
-                  Existing Regions  
-                </Typography>
-                <Typography
+              <Box sx={{ mb: 3, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <Box>
+                  <Typography
+                    variant="h5"
+                    component="h2"
+                    sx={{
+                      fontWeight: 600,
+                      color: '#e53935',
+                      mb: 1,
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 1,
+                    }}
+                  >
+                    <LocationOnIcon sx={{ fontSize: 24, color: '#e53935' }} />
+                    Existing Regions
+                  </Typography>
+                  <Typography
                   variant="subtitle1"
                   color="text.secondary"
                   sx={{
@@ -565,6 +653,16 @@ const AdminDashboard = () => {
                 >
                   Manage your regions and their associated reclamations
                 </Typography>
+                <Button
+                  variant="contained"
+                  color="error"
+                  onClick={() => setIsRegionDialogOpen(true)}
+                  startIcon={<AddIcon />}
+                >
+                  Create Region
+                </Button>
+                </Box>
+               
               </Box>
 
               {/* Regions List */}
@@ -575,14 +673,14 @@ const AdminDashboard = () => {
                 </Typography>
                 <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
                   {regions.map((region) => (
-                    <Card 
+                    <Card
                       key={region.id}
                       elevation={2}
-                      sx={{ 
+                      sx={{
                         borderLeft: selectedRegionId === region.id ? '4px solid' : 'none',
                         borderColor: '#e53935',
                         transition: 'all 0.2s ease',
-                        '&:hover': { 
+                        '&:hover': {
                           boxShadow: 4,
                           transform: 'translateY(-2px)'
                         }
@@ -597,27 +695,21 @@ const AdminDashboard = () => {
                         }}
                       >
                         <ListItemText
-                          primary={
-                            <Typography variant="subtitle1" fontWeight="medium">
-                              {region.name}
-                            </Typography>
-                          }
-                          secondary={
-                            <Box component="span" display="flex" alignItems="center" gap={1}>
-                              <CalendarTodayIcon fontSize="small" />
-                              {`${format(new Date(region.date_debut), 'dd MMM yyyy')} - 
-                              ${format(new Date(region.date_fin), 'dd MMM yyyy')}`}
-                            </Box>
-                          }
-                        />
-                        <IconButton 
+                          primary={<Typography variant="subtitle1" fontWeight="medium">
+                            {region.name}
+                          </Typography>}
+                          secondary={<Box component="span" display="flex" alignItems="center" gap={1}>
+                            <CalendarTodayIcon fontSize="small" />
+                            {`${format(new Date(region.date_debut), 'dd MMM yyyy')} `}
+                          </Box>} />
+                        <IconButton
                           onClick={(e) => {
                             e.stopPropagation();
                             handleOpen(region);
-                          }}
+                          } }
                           size="small"
-                          sx={{ 
-                            color: '#e53935', 
+                          sx={{
+                            color: '#e53935',
                             backgroundColor: 'rgba(229,57,53,0.08)',
                             borderRadius: 1,
                             transition: 'background 0.2s, color 0.2s',
@@ -629,12 +721,13 @@ const AdminDashboard = () => {
                         >
                           <EditIcon />
                         </IconButton>
+                        
                         {/* Delete Region Button */}
                         <IconButton
                           onClick={(e) => {
                             e.stopPropagation();
                             handleDeleteRegion(region);
-                          }}
+                          } }
                           size="small"
                           sx={{
                             color: theme.palette.error.main,
@@ -655,6 +748,7 @@ const AdminDashboard = () => {
                   ))}
                 </Box>
               </Box>
+              
 
               {/* Reclamations for selected region */}
               {selectedRegionId && (
@@ -689,7 +783,7 @@ const AdminDashboard = () => {
 
                   {loadingReclams && (
                     <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
-                      <CircularProgress color="primary" />
+                      <CircularProgress color="error" />
                     </Box>
                   )}
 
@@ -698,7 +792,7 @@ const AdminDashboard = () => {
                       {/* Table Header */}
                       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
                         <Typography variant="h6" sx={{ mb: 2, display: 'flex', alignItems: 'center', gap: 1, color: '#e53935', fontWeight: 700 }}>
-                         
+
                         </Typography>
                         <Box sx={{ display: 'flex', gap: 2 }}>
                           <FormControl size="small" sx={{ width: 120 }}>
@@ -717,7 +811,7 @@ const AdminDashboard = () => {
                           <Pagination
                             count={Math.ceil(reclams.length / rowsPerPage)}
                             page={currentPage}
-                            onChange={(e, page) => setCurrentPage(page)}
+                            onChange={(_e, page) => setCurrentPage(page)}
                             size="small"
                             sx={{
                               '& .MuiPaginationItem-root': {
@@ -734,8 +828,7 @@ const AdminDashboard = () => {
                               '& .MuiPaginationItem-root:hover': {
                                 backgroundColor: 'rgba(229,57,53,0.08)',
                               }
-                            }}
-                          />
+                            }} />
                         </Box>
                       </Box>
 
@@ -765,7 +858,7 @@ const AdminDashboard = () => {
                                           setSortBy(column.id as keyof Reclam);
                                           setOrder('asc');
                                         }
-                                      }}
+                                      } }
                                     >
                                       {column.label}
                                     </TableSortLabel>
@@ -774,7 +867,7 @@ const AdminDashboard = () => {
                               ))}
                             </TableRow>
                           </TableHead>
-                          
+
                           <TableBody>
                             {reclams
                               .slice((currentPage - 1) * rowsPerPage, currentPage * rowsPerPage)
@@ -798,18 +891,16 @@ const AdminDashboard = () => {
                                   >
                                     <StyledTableCell>{reclam.title}</StyledTableCell>
                                     <StyledTableCell>
-                                      <Chip 
-                                        label={reclam.status} 
+                                      <Chip
+                                        label={reclam.status}
                                         size="small"
-                                        color={statusColorMap[reclam.status]}
-                                      />
+                                        color={statusColorMap[reclam.status]} />
                                     </StyledTableCell>
                                     <StyledTableCell>
-                                      <Chip 
-                                        label={reclam.priority} 
+                                      <Chip
+                                        label={reclam.priority}
                                         size="small"
-                                        color={priorityColorMap[reclam.priority]}
-                                      />
+                                        color={priorityColorMap[reclam.priority]} />
                                     </StyledTableCell>
                                     <StyledTableCell>
                                       {format(new Date(reclam.date_debut), 'dd MMM yyyy')}
@@ -825,7 +916,7 @@ const AdminDashboard = () => {
                                     <StyledTableCell>
                                       {reclam.attachment ? (
                                         <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minWidth: 100 }}>
-                                          <Button size="small" variant="outlined" color="primary" onClick={() => handlePreviewAttachment(reclam)}>
+                                          <Button size="small" variant="outlined" color="error" onClick={() => handlePreviewAttachment(reclam)}>
                                             View
                                           </Button>
                                           {isImage && (
@@ -833,8 +924,7 @@ const AdminDashboard = () => {
                                               src={`http://localhost:8000/uploads/${reclam.attachment}`}
                                               alt="attachment"
                                               style={{ maxWidth: 40, maxHeight: 40, borderRadius: 6, border: '1px solid #eee', marginLeft: 8 }}
-                                              onError={e => { e.currentTarget.onerror = null; e.currentTarget.style.display = 'none'; }}
-                                            />
+                                              onError={e => { e.currentTarget.onerror = null; e.currentTarget.style.display = 'none'; } } />
                                           )}
                                         </Box>
                                       ) : (
@@ -853,12 +943,11 @@ const AdminDashboard = () => {
                       {loadingReclams && (
                         <Box sx={{ p: 2 }}>
                           {[...Array(3)].map((_, index) => (
-                            <Skeleton 
+                            <Skeleton
                               key={index}
-                              variant="rectangular" 
-                              height={56} 
-                              sx={{ mb: 1, borderRadius: 1 }}
-                            />
+                              variant="rectangular"
+                              height={56}
+                              sx={{ mb: 1, borderRadius: 1 }} />
                           ))}
                         </Box>
                       )}
@@ -875,156 +964,148 @@ const AdminDashboard = () => {
               )}
             </Paper>
           )}
-{/* Reclamations by Priority Section */}
-{activeSection === 'priority' && (
-  <Paper sx={{ p: 3, mb: 4, borderRadius: 2, boxShadow: 3 }}>
-    <Typography variant="h5" component="h2" sx={{ mb: 3, fontWeight: 600, color: '#e53935' }}>
-      Priority-Based Reclamation Management
-    </Typography>
+          {/* Reclamations by Priority Section */}
+          {activeSection === 'priority' && (
+            <Paper sx={{ p: 3, mb: 4, borderRadius: 2, boxShadow: 3 }}>
+              <Typography variant="h5" component="h2" sx={{ mb: 3, fontWeight: 600, color: '#e53935' }}>
+                Priority-Based Reclamation Management
+              </Typography>
 
-    <Box sx={{ mb: 4 }}>
-      <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap', alignItems: 'center' }}>
-        <FormControl sx={{ minWidth: 200 }} size="small">
-          <InputLabel id="priority-select-label">Priority Level</InputLabel>
-          <Select
-            labelId="priority-select-label"
-            value={selectedPriority}
-            label="Priority Level"
-            onChange={(e) => setSelectedPriority(e.target.value as string)}
-            variant="outlined"
-          >
-            <MenuItem value="high">High Priority</MenuItem>
-            <MenuItem value="medium">Medium Priority</MenuItem>
-            <MenuItem value="low">Low Priority</MenuItem>
-          </Select>
-        </FormControl>
+              <Box sx={{ mb: 4 }}>
+                <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap', alignItems: 'center' }}>
+                  <FormControl sx={{ minWidth: 200 }} size="small">
+                    <InputLabel id="priority-select-label">Priority Level</InputLabel>
+                    <Select
+                      labelId="priority-select-label"
+                      value={selectedPriority}
+                      label="Priority Level"
+                      onChange={(e) => setSelectedPriority(e.target.value as string)}
+                      variant="outlined"
+                    >
+                      <MenuItem value="high">High Priority</MenuItem>
+                      <MenuItem value="medium">Medium Priority</MenuItem>
+                      <MenuItem value="low">Low Priority</MenuItem>
+                    </Select>
+                  </FormControl>
 
-        {priorityError && (
-          <Alert severity="error" sx={{ flex: '1 1 300px' }}>
-            <AlertTitle>Data Retrieval Error</AlertTitle>
-            {priorityError}
-          </Alert>
-        )}
-      </Box>
-    </Box>
+                  {priorityError && (
+                    <Alert severity="error" sx={{ flex: '1 1 300px' }}>
+                      <AlertTitle>Data Retrieval Error</AlertTitle>
+                      {priorityError}
+                    </Alert>
+                  )}
+                </Box>
+              </Box>
 
-    {loadingPriorityReclams ? (
-      <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', py: 4 }}>
-        <CircularProgress size={40} thickness={4} />
-        <Typography variant="body2" sx={{ mt: 2, color: 'text.secondary' }}>
-          Loading reclamation data...
-        </Typography>
-      </Box>
-    ) : (
-      <TableContainer sx={{ maxHeight: 600, overflow: 'auto' }}>
-        <Table stickyHeader aria-label="priority reclamations table">
-          <TableHead>
-            <TableRow>
-              <TableCell sx={{ fontWeight: 600 }}>Reclamation Title</TableCell>
-              <TableCell sx={{ fontWeight: 600 }}>Detailed Description</TableCell>
-              <TableCell sx={{ fontWeight: 600 }}>Status</TableCell>
-              <TableCell sx={{ fontWeight: 600 }}>Priority</TableCell>
-              <TableCell sx={{ fontWeight: 600 }}>Created_At</TableCell>
-              <TableCell sx={{ fontWeight: 600 }}>User</TableCell>
-              <TableCell sx={{ fontWeight: 600 }}>Attachment</TableCell>
-            </TableRow>
-          </TableHead>
-          <TableBody>
-            {filteredReclams.length > 0 ? (
-              filteredReclams.map((reclam) => {
-                const isImage = reclam.attachment && /\.(jpg|jpeg|png|gif|bmp|webp)$/i.test(reclam.attachment);
-                return (
-                  <TableRow key={reclam.id} hover>
-                    <TableCell>{reclam.title}</TableCell>
-                    <TableCell sx={{ maxWidth: 300 }}>{reclam.description}</TableCell>
-                    <TableCell>
-                      <Chip 
-                        label={reclam.status} 
-                        color={
-                          reclam.status.toLowerCase() === 'resolved' ? 'success' : 
-                          reclam.status.toLowerCase() === 'pending' ? 'warning' : 'error'
-                        }
-                        size="small"
-                      />
-                    </TableCell>
-                    <TableCell>
-                      <Chip
-                        label={reclam.priority}
-                        color={
-                          reclam.priority === 'high' ? 'error' :
-                          reclam.priority === 'medium' ? 'warning' : 'success'
-                        }
-                        size="small"
-                      />
-                    </TableCell>
-                    <TableCell>
-                      {new Date(reclam.date_debut).toLocaleDateString('en-US', {
-                        year: 'numeric',
-                        month: 'short',
-                        day: 'numeric'
-                      })}
-                    </TableCell>
-                    <TableCell>
-                      <Box display="flex" alignItems="center" gap={1}>
-                        <Avatar sx={{ width: 24, height: 24, fontSize: 14 }}>
-                          {reclam.user?.name?.charAt(0)}
-                        </Avatar>
-                        {reclam.user?.name}
-                      </Box>
-                    </TableCell>
-                    <TableCell>
-                      {reclam.attachment ? (
-                        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minWidth: 100 }}>
-                          <Button size="small" variant="outlined" color="primary" onClick={() => handlePreviewAttachment(reclam)}>
-                            View
-                          </Button>
-                          {isImage && (
-                            <img
-                              src={`http://localhost:8000/uploads/${reclam.attachment}`}
-                              alt="attachment"
-                              style={{ maxWidth: 40, maxHeight: 40, borderRadius: 6, border: '1px solid #eee', marginLeft: 8 }}
-                              onError={e => { e.currentTarget.onerror = null; e.currentTarget.style.display = 'none'; }}
-                            />
-                          )}
-                        </Box>
+              {loadingPriorityReclams ? (
+                <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', py: 4 }}>
+                  <CircularProgress size={40} thickness={4} />
+                  <Typography variant="body2" sx={{ mt: 2, color: 'text.secondary' }}>
+                    Loading reclamation data...
+                  </Typography>
+                </Box>
+              ) : (
+                <TableContainer sx={{ maxHeight: 600, overflow: 'auto' }}>
+                  <Table stickyHeader aria-label="priority reclamations table">
+                    <TableHead>
+                      <TableRow>
+                        <TableCell sx={{ fontWeight: 600 }}>Reclamation Title</TableCell>
+                        <TableCell sx={{ fontWeight: 600 }}>Detailed Description</TableCell>
+                        <TableCell sx={{ fontWeight: 600 }}>Status</TableCell>
+                        <TableCell sx={{ fontWeight: 600 }}>Priority</TableCell>
+                        <TableCell sx={{ fontWeight: 600 }}>Created_At</TableCell>
+                        <TableCell sx={{ fontWeight: 600 }}>User</TableCell>
+                        <TableCell sx={{ fontWeight: 600 }}>Attachment</TableCell>
+                      </TableRow>
+                    </TableHead>
+                    <TableBody>
+                      {filteredReclams.length > 0 ? (
+                        filteredReclams.map((reclam) => {
+                          const isImage = reclam.attachment && /\.(jpg|jpeg|png|gif|bmp|webp)$/i.test(reclam.attachment);
+                          return (
+                            <TableRow key={reclam.id} hover>
+                              <TableCell>{reclam.title}</TableCell>
+                              <TableCell sx={{ maxWidth: 300 }}>{reclam.description}</TableCell>
+                              <TableCell>
+                                <Chip
+                                  label={reclam.status}
+                                  color={reclam.status.toLowerCase() === 'resolved' ? 'success' :
+                                    reclam.status.toLowerCase() === 'pending' ? 'warning' : 'error'}
+                                  size="small" />
+                              </TableCell>
+                              <TableCell>
+                                <Chip
+                                  label={reclam.priority}
+                                  color={reclam.priority === 'high' ? 'error' :
+                                    reclam.priority === 'medium' ? 'warning' : 'success'}
+                                  size="small" />
+                              </TableCell>
+                              <TableCell>
+                                {new Date(reclam.date_debut).toLocaleDateString('en-US', {
+                                  year: 'numeric',
+                                  month: 'short',
+                                  day: 'numeric'
+                                })}
+                              </TableCell>
+                              <TableCell>
+                                <Box display="flex" alignItems="center" gap={1}>
+                                  <Avatar sx={{ width: 24, height: 24, fontSize: 14 }}>
+                                    {reclam.user?.name?.charAt(0)}
+                                  </Avatar>
+                                  {reclam.user?.name}
+                                </Box>
+                              </TableCell>
+                              <TableCell>
+                                {reclam.attachment ? (
+                                  <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minWidth: 100 }}>
+                                    <Button size="small" variant="outlined" color="error" onClick={() => handlePreviewAttachment(reclam)}>
+                                      View
+                                    </Button>
+                                    {isImage && (
+                                      <img
+                                        src={`http://localhost:8000/uploads/${reclam.attachment}`}
+                                        alt="attachment"
+                                        style={{ maxWidth: 40, maxHeight: 40, borderRadius: 6, border: '1px solid #eee', marginLeft: 8 }}
+                                        onError={e => { e.currentTarget.onerror = null; e.currentTarget.style.display = 'none'; } } />
+                                    )}
+                                  </Box>
+                                ) : (
+                                  <span style={{ color: '#aaa' }}>No Attachment</span>
+                                )}
+                              </TableCell>
+                            </TableRow>
+                          );
+                        })
                       ) : (
-                        <span style={{ color: '#aaa' }}>No Attachment</span>
+                        <TableRow>
+                          <TableCell colSpan={7} sx={{ py: 4 }}>
+                            <Box sx={{
+                              display: 'flex',
+                              flexDirection: 'column',
+                              alignItems: 'center',
+                              color: 'text.secondary'
+                            }}>
+                              <InfoOutlinedIcon sx={{ fontSize: 40, color: 'text.secondary' }} />
+                              <Typography variant="body1">
+                                No reclamations found for selected priority level
+                              </Typography>
+                            </Box>
+                          </TableCell>
+                        </TableRow>
                       )}
-                    </TableCell>
-                  </TableRow>
-                );
-              })
-            ) : (
-              <TableRow>
-                <TableCell colSpan={7} sx={{ py: 4 }}>
-                  <Box sx={{ 
-                    display: 'flex', 
-                    flexDirection: 'column', 
-                    alignItems: 'center',
-                    color: 'text.secondary'
-                  }}>
-                    <InfoOutlinedIcon sx={{ fontSize: 40, color: 'text.secondary' }} />
-                    <Typography variant="body1">
-                      No reclamations found for selected priority level
-                    </Typography>
-                  </Box>
-                </TableCell>
-              </TableRow>
-            )}
-          </TableBody>
-        </Table>
-      </TableContainer>
-    )}
-    {/* Attachment Preview Dialog for priority-based reclamations */}
-    <AttachmentPreviewDialog
-      open={attachmentPreviewOpen}
-      onClose={() => setAttachmentPreviewOpen(false)}
-      src={attachmentPreviewSrc || ''}
-      isImage={attachmentPreviewIsImage}
-    />
-  </Paper>
-)}
-        
+                    </TableBody>
+                  </Table>
+                </TableContainer>
+              )}
+              {/* Attachment Preview Dialog for priority-based reclamations */}
+              <AttachmentPreviewDialog
+                open={attachmentPreviewOpen}
+                onClose={() => setAttachmentPreviewOpen(false)}
+                src={attachmentPreviewSrc || ''}
+                isImage={attachmentPreviewIsImage} />
+            </Paper>
+          )}
+
           {/* Users by Role section */}
           {activeSection === 'users' && (
             <StyledCard sx={{ p: 3, mb: 4 }}>
@@ -1113,7 +1194,7 @@ const AdminDashboard = () => {
                     Loading user data...
                   </Typography>
                 </Box>
-              ) : ( 
+              ) : (
                 <StyledTableContainer>
                   <Table>
                     <TableHead>
@@ -1123,7 +1204,6 @@ const AdminDashboard = () => {
                         <StyledTableCell sx={{ fontWeight: 700, borderBottom: '2px solid', borderColor: 'divider' }}>Full Name</StyledTableCell>
                         <StyledTableCell sx={{ fontWeight: 700, borderBottom: '2px solid', borderColor: 'divider' }}>Phone Number</StyledTableCell>
                         <StyledTableCell sx={{ fontWeight: 700, borderBottom: '2px solid', borderColor: 'divider' }}>Bank Account</StyledTableCell>
-                        <StyledTableCell sx={{ fontWeight: 700, borderBottom: '2px solid', borderColor: 'divider' }}>Balance</StyledTableCell>
                         <StyledTableCell sx={{ fontWeight: 700, borderBottom: '2px solid', borderColor: 'divider' }}>Created At</StyledTableCell>
                         <StyledTableCell sx={{ fontWeight: 700, borderBottom: '2px solid', borderColor: 'divider' }}>Updated At</StyledTableCell>
                         <StyledTableCell sx={{ fontWeight: 700, borderBottom: '2px solid', borderColor: 'divider' }} align="center">Actions</StyledTableCell>
@@ -1138,14 +1218,13 @@ const AdminDashboard = () => {
                             <StyledTableCell>{user.full_name}</StyledTableCell>
                             <StyledTableCell>{user.number}</StyledTableCell>
                             <StyledTableCell>{user.bank_account_number}</StyledTableCell>
-                            <StyledTableCell>{user.bank_account_balance?.toLocaleString('en-US', { style:'currency', currency:'USD' })}</StyledTableCell>
                             <StyledTableCell>{format(new Date(user.createdAt), 'dd MMM yyyy')}</StyledTableCell>
                             <StyledTableCell>{format(new Date(user.updatedAt), 'dd MMM yyyy')}</StyledTableCell>
                             <StyledTableCell align="center">
                               <StyledIconButton
                                 size="small"
                                 onClick={() => handleEditUser(user.id)}
-                                color="primary" 
+                                color="error"
                                 sx={{
                                   '&:hover': {
                                     backgroundColor: 'primary.light',
@@ -1172,9 +1251,9 @@ const AdminDashboard = () => {
                       ) : (
                         <TableRow>
                           <TableCell colSpan={9} sx={{ py: 4 }}>
-                            <Box sx={{ 
-                              display: 'flex', 
-                              flexDirection: 'column', 
+                            <Box sx={{
+                              display: 'flex',
+                              flexDirection: 'column',
                               alignItems: 'center',
                               color: 'text.secondary'
                             }}>
@@ -1193,17 +1272,119 @@ const AdminDashboard = () => {
               <CreateUserDialog
                 open={createUserOpen}
                 onClose={() => setCreateUserOpen(false)}
-                onSuccess={() => fetchUsersByRole(selectedUserRole)}
-              />
+                onSuccess={() => fetchUsersByRole(selectedUserRole)} />
               <EditUserDialog
                 open={editUserDialogOpen}
                 user={userToEdit}
-                onClose={() => { setEditUserDialogOpen(false); setUserToEdit(null); }}
-                onSave={handleSaveEditedUser}
-              />
+                onClose={() => { setEditUserDialogOpen(false); setUserToEdit(null); } }
+                onSave={handleSaveEditedUser} />
             </StyledCard>
           )}
         </Box>
+
+        {/* get agents */}
+
+        {activeSection === 'agents' && (
+  <StyledCard sx={{ p: 3, mb: 4 }}>
+    <Typography variant="h5" sx={{ mb: 3, fontWeight: 600, color: '#e53935' }}>
+      Support Agents
+    </Typography>
+
+    {agentsError && (
+      <Alert severity="error" sx={{ mb: 2 }}>
+        {agentsError}
+      </Alert>
+    )}
+
+    {loadingAgents ? (
+      <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
+        <CircularProgress />
+      </Box>
+    ) : (
+      <StyledTableContainer>
+        <Table>
+          <TableHead>
+            <TableRow>
+              <StyledTableCell>Name</StyledTableCell>
+              <StyledTableCell>Email</StyledTableCell>
+              <StyledTableCell>Phone Number</StyledTableCell>
+              <StyledTableCell>Region</StyledTableCell>
+              <StyledTableCell>Created At</StyledTableCell>
+              <StyledTableCell>Updated At</StyledTableCell>
+              <StyledTableCell>Actions</StyledTableCell>
+            </TableRow>
+          </TableHead>
+          <TableBody>
+            {agents.map((agent) => (
+              <StyledTableRow key={agent.id}>
+                <StyledTableCell>{agent.name}</StyledTableCell>
+                <StyledTableCell>{agent.email}</StyledTableCell>
+                <StyledTableCell>{agent.number}</StyledTableCell>
+                <StyledTableCell>
+                  {regions.find((r) => r.id === agent.region_id)?.name || 'Unassigned'}
+                </StyledTableCell>
+                <StyledTableCell>{format(new Date(agent.createdAt), 'dd MMM yyyy')}</StyledTableCell>
+                <StyledTableCell>{format(new Date(agent.updatedAt), 'dd MMM yyyy')}</StyledTableCell>
+                <StyledTableCell>
+                  <Button
+                    variant="outlined"
+                    size="small"
+                    onClick={() => handleOpenUpdateRegion(agent)}
+                    sx={{
+                      borderColor: '#e53935',
+                      color: '#e53935',
+                      '&:hover': { backgroundColor: '#fdecea' }
+                    }}
+                  >
+                    Update Region
+                  </Button>
+                </StyledTableCell>
+              </StyledTableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </StyledTableContainer>
+    )}
+
+    {/* Update Agent Region Dialog */}
+    <Dialog open={updateAgentDialogOpen} onClose={() => setUpdateAgentDialogOpen(false)} maxWidth="sm" fullWidth>
+      <DialogTitle>Update Agent Region</DialogTitle>
+      <DialogContent>
+        <FormControl fullWidth sx={{ mt: 2 }}>
+          <InputLabel id="select-region-label">Select Region</InputLabel>
+          <Select
+            labelId="select-region-label"
+            value={selectedAgentRegion ?? ''}
+            label="Select Region"
+            onChange={(e) => setSelectedAgentRegion(Number(e.target.value))}
+          >
+            {regions.map((region) => (
+              <MenuItem key={region.id} value={region.id}>
+                {region.name}
+              </MenuItem>
+            ))}
+          </Select>
+        </FormControl>
+      </DialogContent>
+      <DialogActions>
+        <Button onClick={() => setUpdateAgentDialogOpen(false)}>Cancel</Button>
+        <Button onClick={handleUpdateAgentRegion} variant="contained" color="error">
+          Update
+        </Button>
+      </DialogActions>
+    </Dialog>
+  </StyledCard>
+)}
+
+
+
+
+
+
+
+
+
+
 
         {/* Add/Edit Region Dialog */}
         <Dialog open={open} onClose={handleClose} maxWidth="sm" fullWidth>
@@ -1221,9 +1402,8 @@ const AdminDashboard = () => {
                   label="Region Name"
                   name="name"
                   value={formData.name}
-                  onChange={handleChange}
-                />
-                <LocalizationProvider dateAdapter={AdapterDateFns}>  
+                  onChange={handleChange} />
+                <LocalizationProvider dateAdapter={AdapterDateFns}>
 
 
                   <MuiDatePicker
@@ -1232,18 +1412,8 @@ const AdminDashboard = () => {
                     onChange={(date) => {
                       const formatted = date ? format(date, 'yyyy-MM-dd') : '';
                       setFormData((prev) => ({ ...prev, date_debut: formatted }));
-                    }}
-                    renderInput={(params) => <TextField {...params} required />}
-                  />
-                  <MuiDatePicker
-                    label="End Date"
-                    value={formData.date_fin ? new Date(formData.date_fin) : null}
-                    onChange={(date) => {
-                      const formatted = date ? format(date, 'yyyy-MM-dd') : '';
-                      setFormData((prev) => ({ ...prev, date_fin: formatted }));
-                    }}
-                    renderInput={(params) => <TextField {...params} required />}
-                  />
+                    } }
+                    renderInput={(params) => <TextField {...params} required />} />
                 </LocalizationProvider>
               </Box>
             </DialogContent>
@@ -1259,8 +1429,7 @@ const AdminDashboard = () => {
           open={attachmentPreviewOpen}
           onClose={() => setAttachmentPreviewOpen(false)}
           src={attachmentPreviewSrc || ''}
-          isImage={attachmentPreviewIsImage}
-        />
+          isImage={attachmentPreviewIsImage} />
 
         {/* Delete Confirmation Dialog */}
         <Dialog open={deleteDialogOpen} onClose={() => setDeleteDialogOpen(false)}>
@@ -1283,8 +1452,7 @@ const AdminDashboard = () => {
               value={deleteConfirmText}
               onChange={e => setDeleteConfirmText(e.target.value)}
               sx={{ mb: 1 }}
-              inputProps={{ style: { textTransform: 'uppercase', letterSpacing: '0.1em', fontWeight: 600 } }}
-            />
+              inputProps={{ style: { textTransform: 'uppercase', letterSpacing: '0.1em', fontWeight: 600 } }} />
           </DialogContent>
           <DialogActions>
             <Button onClick={() => setDeleteDialogOpen(false)} color="inherit" variant="outlined" sx={{ fontWeight: 700, borderRadius: 2 }}>Cancel</Button>
@@ -1301,6 +1469,138 @@ const AdminDashboard = () => {
         </Dialog>
 
         {/* Delete Confirmation Dialog for Regions */}
+        {/* Create Region Dialog */}
+        <Dialog
+          open={isRegionDialogOpen}
+          onClose={() => {
+            setIsRegionDialogOpen(false);
+            setRegionError(null);
+          }}
+          maxWidth="sm"
+          fullWidth
+        >
+          <DialogTitle>Create New Region</DialogTitle>
+          <DialogContent>
+            <LocalizationProvider dateAdapter={AdapterDateFns}>
+              <Box display="flex" flexDirection="column" gap={2} mt={1}>
+                <TextField
+                  name="name"
+                  label="Region Name"
+                  variant="outlined"
+                  fullWidth
+                  value={regionFormData.name}
+                  onChange={(e) => setRegionFormData(prev => ({
+                    ...prev,
+                    name: e.target.value
+                  }))}
+                  required
+                />
+                <MuiDatePicker
+                  label="Start Date"
+                  value={regionFormData.date_debut ? new Date(regionFormData.date_debut) : null}
+                  onChange={(date) => {
+                    setRegionFormData(prev => ({
+                      ...prev,
+                      date_debut: date ? format(date, 'yyyy-MM-dd') : ''
+                    }));
+                  }}
+                  renderInput={(params) => <TextField {...params} fullWidth />}
+                />
+                {regionError && (
+                  <Alert severity="error">
+                    {regionError}
+                  </Alert>
+                )}
+              </Box>
+            </LocalizationProvider>
+          </DialogContent>
+          <DialogActions>
+            <Button
+              onClick={() => {
+                setIsRegionDialogOpen(false);
+                setRegionError(null);
+              }}
+              color="secondary"
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleCreateRegion}
+              color="error"
+              variant="contained"
+              disabled={loadingRegions || !regionFormData.name || !regionFormData.date_debut  }
+            >
+              {loadingRegions ? <CircularProgress size={24} /> : 'Create Region'}
+            </Button>
+          </DialogActions>
+        </Dialog>
+
+        {/* Create Region Dialog */}
+        <Dialog
+          open={isRegionDialogOpen}
+          onClose={() => {
+            setIsRegionDialogOpen(false);
+            setRegionError(null);
+          }}
+          maxWidth="sm"
+          fullWidth
+        >
+          <DialogTitle>Create New Region</DialogTitle>
+          <DialogContent>
+            <LocalizationProvider dateAdapter={AdapterDateFns}>
+              <Box display="flex" flexDirection="column" gap={2} mt={1}>
+                <TextField
+                  name="name"
+                  label="Region Name"
+                  variant="outlined"
+                  fullWidth
+                  value={regionFormData.name}
+                  onChange={(e) => setRegionFormData(prev => ({
+                    ...prev,
+                    name: e.target.value
+                  }))}
+                  required
+                />
+                <MuiDatePicker
+                  label="Start Date"
+                  value={regionFormData.date_debut ? new Date(regionFormData.date_debut) : null}
+                  onChange={(date) => {
+                    setRegionFormData(prev => ({
+                      ...prev,
+                      date_debut: date ? format(date, 'yyyy-MM-dd') : ''
+                    }));
+                  }}
+                  renderInput={(params) => <TextField {...params} fullWidth />}
+                />
+                {regionError && (
+                  <Alert severity="error">
+                    {regionError}
+                  </Alert>
+                )}
+              </Box>
+            </LocalizationProvider>
+          </DialogContent>
+          <DialogActions>
+            <Button
+              onClick={() => {
+                setIsRegionDialogOpen(false);
+                setRegionError(null);
+              }}
+              color="secondary"
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleCreateRegion}
+              color="error"
+              variant="contained"
+              disabled={loadingRegions || !regionFormData.name || !regionFormData.date_debut }
+            >
+              {loadingRegions ? <CircularProgress size={24} /> : 'Create Region'}
+            </Button> 
+          </DialogActions>
+        </Dialog>
+
         <Dialog open={deleteRegionDialogOpen} onClose={() => setDeleteRegionDialogOpen(false)}>
           <DialogTitle id="delete-region-dialog-title" sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
             <HighlightOff color="error" sx={{ fontSize: 32 }} />
@@ -1321,8 +1621,7 @@ const AdminDashboard = () => {
               value={deleteRegionConfirmText}
               onChange={e => setDeleteRegionConfirmText(e.target.value)}
               sx={{ mb: 1 }}
-              inputProps={{ style: { textTransform: 'uppercase', letterSpacing: '0.1em', fontWeight: 600 } }}
-            />
+              inputProps={{ style: { textTransform: 'uppercase', letterSpacing: '0.1em', fontWeight: 600 } }} />
           </DialogContent>
           <DialogActions>
             <Button onClick={() => setDeleteRegionDialogOpen(false)} color="inherit" variant="outlined" sx={{ fontWeight: 700, borderRadius: 2 }}>Cancel</Button>
@@ -1337,9 +1636,9 @@ const AdminDashboard = () => {
             </Button>
           </DialogActions>
         </Dialog>
-      </Box>  
+      </Box>
 
-    </Box>
+    </Box><FooterHTML /> </>
     
   );
 };

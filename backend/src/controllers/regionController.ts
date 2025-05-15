@@ -15,13 +15,12 @@ const parseDate = (dateString: string | undefined): Date | null => {
 
 export const addRegion = async (req: Request, res: Response) => {
   try {
-    const { name, date_debut, date_fin } = req.body;
+    const { name, date_debut } = req.body;
           
     // Validate dates
     const debutDate = parseDate(date_debut);
-    const finDate = parseDate(date_fin);
 
-    if (!debutDate || !finDate) {
+    if (!debutDate) {
       return res.status(400).json({ 
         error: 'Invalid date format. Please provide valid dates in ISO format (YYYY-MM-DD)' 
       });
@@ -31,7 +30,6 @@ export const addRegion = async (req: Request, res: Response) => {
       data: {
         name,
         date_debut: debutDate,
-        date_fin: finDate,
       },
     });
     return res.status(201).json(newRegion);
@@ -65,7 +63,7 @@ export const getRegionById = async (req: Request, res: Response) => {
 export const updateRegion = async (req: Request, res: Response) => {
   try {
     const id = Number(req.params.id);
-    const { name, date_debut, date_fin } = req.body;
+    const { name, date_debut } = req.body;
     
     // Create update data object with only provided fields
     const updateData: any = { name };
@@ -81,15 +79,7 @@ export const updateRegion = async (req: Request, res: Response) => {
       updateData.date_debut = debutDate;
     }
 
-    if (date_fin) {
-      const finDate = parseDate(date_fin);
-      if (!finDate) {
-        return res.status(400).json({ 
-          error: 'Invalid date_fin format. Please provide a valid date in ISO format (YYYY-MM-DD)' 
-        });
-      }
-      updateData.date_fin = finDate;
-    }
+   
 
     const updated = await prisma.region.update({
       where: { id },

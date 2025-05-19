@@ -40,6 +40,7 @@ import { HTML5Backend } from 'react-dnd-html5-backend';
 import { format } from 'date-fns';
 import AgentHeader from './AgentHeader';
 import AgentRecentReclamsTable from '../components/AgentRecentReclamsTable';
+import FooterHTML from '../components/FooterHTML';
 
 interface Reclamation {
   id: number;
@@ -134,28 +135,24 @@ const AgentDashboard = () => {
   const fetchReclams = useCallback(async () => {
     try {
       setLoading(true);
-      console.log('Fetching reclamations...');
-      const response = await axios.get('http://localhost:8000/api/reclams');
-      console.log('Reclamations fetched:', response.data);
+  
+      if (!user || !user.id) throw new Error('User not authenticated');
+  
+      const response = await axios.get(`http://localhost:8000/api/reclams/by-user-region/${user.id}`);
       setReclams(response.data);
       setError(null);
-    } catch (error: unknown) {
-      console.error('Error in fetchReclams:', error);
-      if (axios.isAxiosError(error)) {
-        console.error('Response data:', error.response?.data);
-        console.error('Response status:', error.response?.status);
-      } else {
-        console.error('Unknown error:', error);
-      }
-      setError('Failed to fetch reclamations. Please check the console for details.');
+    } catch (error) {
+      console.error('Error fetching:', error);
+      setError('Failed to fetch reclamations.');
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [user]);
+  
 
   useEffect(() => {
     console.log('Component mounted, fetching reclamations...');
-    fetchReclams();
+    fetchReclams(); 
   }, [fetchReclams]);
 
   const getStatusCount = (status: string) => {
@@ -229,6 +226,24 @@ const AgentDashboard = () => {
     }
   };
 
+
+
+
+  useEffect(() => {
+    const fetchRegion = async () => {
+      if (user?.region_id) {
+        try {
+          const res = await axios.get(`http://localhost:8000/api/regions/${user.region_id}`);
+          setRegionName(res.data.name);
+        } catch (err) {
+          console.error('Error fetching region:', err);
+        }
+      }
+    };
+    fetchRegion();
+
+    
+  }, [user?.region_id]);
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
@@ -269,6 +284,26 @@ const AgentDashboard = () => {
     handleEdit(reclam);
   };
 
+  const [regionName, setRegionName] = useState<string | null>(null);
+
+  useEffect(() => {
+    console.log('User data:', user);
+    console.log('Region ID:', user?.region_id);
+    const fetchRegionName = async () => {
+      if (!user?.region_id) return;
+      try {
+        console.log('Fetching region:', user.region_id);
+        const res = await axios.get(`http://localhost:8000/api/regions/${user.region_id}`);
+        console.log('Region response:', res.data);
+        setRegionName(res.data.name);
+      } catch (err) {
+        console.error('Error fetching region name:', err);
+      }
+    };
+
+    fetchRegionName();
+  }, [user?.region_id]);
+
   // Convert Reclamation[] to Reclam[] for AgentRecentReclamsTable
   const reclamsForTable = reclams.map((r: any) => ({
     ...r,
@@ -283,12 +318,14 @@ const AgentDashboard = () => {
   }));
 
   return (
-    <DndProvider backend={HTML5Backend}>
+    <><DndProvider backend={HTML5Backend}>
       <AgentHeader
         toggleDrawer={() => setDrawerOpen(!drawerOpen)}
         onLogout={logout}
-        isMobile={isMobile}
-      />
+        isMobile={isMobile} 
+        
+        regionName={regionName || undefined}
+/>
       <Box sx={{
         p: 3,
         bgcolor: mode === 'dark' ? 'background.default' : 'background.default',
@@ -298,7 +335,7 @@ const AgentDashboard = () => {
       }}>
         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
           <Typography variant="h4">Agent Dashboard</Typography>
-         
+
         </Box>
 
         {/* Statistics */}
@@ -527,34 +564,30 @@ const AgentDashboard = () => {
 
         {/* Kanban Board */}
         <Grid container spacing={2}>
-          <StatusColumn 
+          <StatusColumn
             status="pending"
             reclams={reclams}
             onStatusChange={handleStatusChange}
             onEdit={handleEdit}
-            onDelete={handleDelete}
-          />
-          <StatusColumn 
+            onDelete={handleDelete} />
+          <StatusColumn
             status="in_progress"
             reclams={reclams}
             onStatusChange={handleStatusChange}
             onEdit={handleEdit}
-            onDelete={handleDelete}
-          />
-          <StatusColumn 
+            onDelete={handleDelete} />
+          <StatusColumn
             status="rejected"
             reclams={reclams}
             onStatusChange={handleStatusChange}
             onEdit={handleEdit}
-            onDelete={handleDelete}
-          />
-          <StatusColumn 
+            onDelete={handleDelete} />
+          <StatusColumn
             status="closed"
             reclams={reclams}
             onStatusChange={handleStatusChange}
             onEdit={handleEdit}
-            onDelete={handleDelete}
-          />
+            onDelete={handleDelete} />
         </Grid>
 
         {/* Recent Reclamations Table */}
@@ -588,8 +621,7 @@ const AgentDashboard = () => {
                 name="title"
                 value={formData.title}
                 onChange={e => setFormData(prev => ({ ...prev, title: e.target.value }))}
-                sx={{ mb: 2 }}
-              />
+                sx={{ mb: 2 }} />
               <TextField
                 required
                 fullWidth
@@ -599,8 +631,7 @@ const AgentDashboard = () => {
                 name="description"
                 value={formData.description}
                 onChange={e => setFormData(prev => ({ ...prev, description: e.target.value }))}
-                sx={{ mb: 2 }}
-              />
+                sx={{ mb: 2 }} />
               <Box sx={{ display: 'flex', gap: 2, mb: 2 }}>
                 <TextField
                   select
@@ -678,8 +709,7 @@ const AgentDashboard = () => {
                   fontWeight: 600,
                 },
               }}
-              inputProps={{ maxLength: 250 }}
-            />
+              inputProps={{ maxLength: 250 }} />
           </DialogContent>
           <DialogActions sx={{
             background: theme.palette.mode === 'dark' ? '#232526' : '#fff',
@@ -696,9 +726,10 @@ const AgentDashboard = () => {
           </DialogActions>
         </Dialog>
 
-       
+
       </Box>
-    </DndProvider>
+    </DndProvider><FooterHTML /></>
+    
   ); 
 };
 
@@ -990,6 +1021,7 @@ const ReclamCard = ({ reclam, onEdit, onDelete }: {
     </Card>
     
   );
-};
+}; 
+
 
 export default AgentDashboard;

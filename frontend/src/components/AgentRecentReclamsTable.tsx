@@ -164,20 +164,7 @@ const AgentRecentReclamsTable: React.FC<{
           <MenuItem value="medium">medium</MenuItem>
           <MenuItem value="low">low</MenuItem>
         </TextField>
-        <TextField
-          select
-          label="Region"
-          size="small"
-          value={filterRegion}
-          onChange={e => setFilterRegion(e.target.value)}
-          sx={{ minWidth: 140 }}
-          SelectProps={{ native: false }}
-        >
-          <MenuItem value="">All</MenuItem>
-          {uniqueRegions.map(region => (
-            <MenuItem key={region} value={region as string}>{region}</MenuItem>
-          ))}
-        </TextField>
+       
       </Box>
       <TableContainer>
         <MuiTable>

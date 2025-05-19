@@ -48,6 +48,7 @@ const AdminSidebar: React.FC<AdminSidebarProps> = ({
     { text: 'Existing Regions', icon: <MapIcon />, section: 'regions' },
     { text: 'Reclamations by Priority', icon: <PriorityHighIcon />, section: 'priority' },
     { text: 'Users by Role', icon: <PeopleIcon />, section: 'users' },
+    { text: 'Agents', icon: <AssignmentIcon />, section: 'agents' },
   ];
 
   const toggleDrawer = () => {

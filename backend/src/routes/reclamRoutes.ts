@@ -7,10 +7,12 @@ import {
   getReclamsByPriority,
   getReclamsByRegion,
   updateReclamStatus,
-  updateReclam
+  updateReclam,
+  getReclamsByUserRegion,
 } from '../controllers/reclamController';
 import { PrismaClient } from '@prisma/client';
 import upload from '../middleware/upload';
+
 
 const prisma = new PrismaClient();
 
@@ -46,6 +48,12 @@ router.post('/', upload.single('attachment'), asyncHandler(async (req, res) => {
 router.get('/:id', asyncHandler(async (req, res) => {
   await getReclamById(req, res);
 }));
+
+
+//agents reclmas
+
+router.get('/by-user-region/:userId', getReclamsByUserRegion);
+
 
 // Update reclam by ID
 router.put('/:id', upload.single('attachment'), asyncHandler(async (req, res) => {

@@ -3,27 +3,305 @@ import { PrismaClient, Prisma } from '@prisma/client';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import crypto from 'crypto';
-import nodemailer from 'nodemailer';
+import nodemailer, { Transporter, SentMessageInfo } from 'nodemailer';
 import { isEmail } from 'validator';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'your-default-secret';
 
+// Validate SMTP configuration
+function validateSmtpConfig() {
+  const errors: string[] = [];
+
+  if (!process.env.EMAIL_USER) {
+    errors.push('EMAIL_USER is not set');
+  }
+
+  if (!process.env.EMAIL_PASS) {
+    errors.push('EMAIL_PASS is not set');
+  }
+
+  return errors;
+}
+
+// Configure nodemailer transporter with comprehensive error handling
+let transporter: Transporter | null = null;
+// Flag to indicate if email sending is in fallback mode due to configuration or verification issues
+let emailSendingFallback = false;
+
+try {
+  const configErrors = validateSmtpConfig();
+  if (configErrors.length > 0) {
+    console.warn('SMTP Configuration Errors:', configErrors);
+    emailSendingFallback = true;
+  } else {
+    transporter = nodemailer.createTransport({
+      host: 'smtp.gmail.com',
+      port: 587,
+      secure: false,
+      auth: {
+        user: process.env.EMAIL_USER || '',
+        pass: process.env.EMAIL_PASS || ''
+      },
+      // Fallback configuration
+      tls: {
+        rejectUnauthorized: false // Only use in development
+      }
+    });
+  }
+} catch (configError) {
+  console.warn('Failed to create SMTP Transporter:', {
+    error: configError instanceof Error ? configError.message : String(configError)
+  });
+  emailSendingFallback = true;
+}
+
+  // Verify transporter connection
+  if (transporter) {
+    transporter.verify((error) => {
+      if (error) {
+        console.error('SMTP Transporter Verification Failed:', {
+          error: error.message,
+          stack: error.stack
+        });
+        emailSendingFallback = true;
+      } else {
+        console.log('SMTP Transporter is ready to send emails');
+      }
+    });
+  }
+
+
+// Log transporter configuration for debugging
+console.log('SMTP Transporter Configuration:', {
+  host: 'smtp.gmail.com',
+  port: 587,
+  secure: false,
+  user: process.env.EMAIL_USER ? 'CONFIGURED' : 'NOT SET'
+});
+
 const prisma = new PrismaClient();
 
-// ... (rest of the code remains the same)
+// Forgot Password Controller
+export const forgotPassword = async (req: Request, res: Response) => {
+  // Extremely detailed logging for incoming request
+  console.log('Forgot Password Request FULL DETAILS:', {
+    body: JSON.stringify(req.body),
+    headers: JSON.stringify(req.headers),
+    method: req.method,
+    contentType: req.headers['content-type'],
+    query: JSON.stringify(req.query)
+  });
+
+  // Log request body parsing
+  console.log('Request Body Type:', typeof req.body);
+  console.log('Request Body Keys:', req.body ? Object.keys(req.body) : 'NO BODY');
+
+  try {
+    // Type-safe email extraction
+    const email = req.body && typeof req.body === 'object' && 'email' in req.body 
+      ? String(req.body.email).trim() 
+      : undefined;
+
+    // Validate email input with multiple checks
+    if (!email) {
+      console.warn('Forgot password attempt with INVALID email:', {
+        bodyType: typeof req.body,
+        bodyKeys: req.body ? Object.keys(req.body) : 'NO BODY',
+        email: email
+      });
+      return res.status(400).json({ 
+        error: 'Email is required',
+        details: 'Please provide a valid email address',
+        debugInfo: {
+          bodyType: typeof req.body,
+          bodyKeys: req.body ? Object.keys(req.body) : 'NO BODY'
+        }
+      });
+    }
+
+    // Validate email format
+    if (!isEmail(email)) {
+      console.warn('Invalid email format', { email });
+      return res.status(400).json({ 
+        error: 'Invalid email format',
+        details: 'Please provide a valid email address' 
+      });
+    }
+
+    // Check if user exists
+    const user = await prisma.user.findUnique({ 
+      where: { email },
+      select: { id: true, email: true } 
+    });
+
+    // Detailed logging for user lookup
+    console.log('User Lookup Result:', {
+      email,
+      userFound: !!user
+    });
+
+    if (!user) {
+      return res.status(404).json({ 
+        error: 'Account not found',
+        details: 'No account is associated with this email address' 
+      });
+    }
+
+    // Generate reset token
+    const resetToken = crypto.randomBytes(32).toString('hex');
+    const resetTokenExpiry = new Date(Date.now() + 3600000); // 1 hour from now
+
+    // Update user with reset token
+    try {
+      await prisma.user.update({
+        where: { email },
+        data: {
+          resetToken,
+          resetTokenExpiry
+        }
+      });
+    } catch (updateError) {
+      console.error('Failed to update reset token:', {
+        email,
+        error: updateError instanceof Error ? updateError.message : String(updateError)
+      });
+      return res.status(500).json({ 
+        error: 'Token generation failed',
+        details: 'Unable to generate password reset token' 
+      });
+    }
+
+    // Prepare reset URL
+    const resetUrl = `${process.env.FRONTEND_URL || 'http://localhost:3000'}/reset-password/${resetToken}`;
+
+    // Send reset email
+    try {
+      // Check if email sending is in fallback mode
+      if (emailSendingFallback) {
+        console.warn('Email sending in fallback mode. Cannot send password reset email.');
+        return res.status(500).json({ 
+          error: 'Email service temporarily unavailable',
+          details: 'Please try again later or contact support'
+        });
+      }
+
+      // Validate email configuration and transporter
+      if (!transporter) {
+        console.error('SMTP transporter not initialized');
+        return res.status(500).json({ 
+          error: 'Email service not available',
+          details: 'SMTP transporter failed to initialize',
+          debugInfo: {
+            smtpHost: 'smtp.gmail.com',
+            smtpUser: process.env.EMAIL_USER ? 'CONFIGURED' : 'NOT SET'
+          }
+        });
+      }
+
+      // Validate email configuration
+      if (!process.env.SMTP_USER || !process.env.SMTP_PASS) {
+        console.error('SMTP credentials not configured');
+        return res.status(500).json({ 
+          error: 'Email service not configured',
+          details: 'SMTP credentials are missing' 
+        });
+      }
+
+      // Attempt to send email with detailed logging
+      const emailResult = await new Promise<nodemailer.SentMessageInfo>((resolve, reject) => {
+        transporter.sendMail({
+          from: process.env.EMAIL_USER || 'noreply@example.com',
+          to: email,
+          subject: 'Password Reset Request',
+          html: `
+            <h2>Password Reset</h2>
+            <p>You have requested a password reset. Click the link below to reset your password:</p>
+            <a href="${resetUrl}">Reset Password</a>
+            <p>This link will expire in 1 hour.</p>
+          `
+        }, (err, info) => {
+          if (err) reject(err);
+          else resolve(info);
+        });
+      });
+
+      console.log('Password reset email sent', { 
+        email, 
+        resetUrl, 
+        messageId: emailResult.messageId 
+      });
+
+      res.json({ 
+        message: 'Password reset link sent to your email',
+        details: 'Check your inbox for further instructions' 
+      });
+    } catch (emailError) {
+      // Comprehensive error logging for email sending failures
+      const errorDetails = emailError instanceof Error 
+        ? {
+            name: emailError.name,
+            message: emailError.message,
+            stack: emailError.stack
+          } 
+        : { message: String(emailError) };
+
+      console.error('Failed to send reset email:', {
+        email,
+        smtpConfig: {
+          host: process.env.SMTP_HOST || 'NOT SET',
+          port: process.env.SMTP_PORT || 'NOT SET',
+          user: process.env.SMTP_USER ? 'CONFIGURED' : 'NOT SET'
+        },
+        error: errorDetails
+      });
+
+      return res.status(500).json({ 
+        error: 'Email sending failed',
+        details: 'Unable to send password reset email',
+        debugInfo: {
+          smtpConfigured: !!process.env.SMTP_USER,
+          errorType: errorDetails.name,
+          errorMessage: errorDetails.message
+        }
+      });
+    }
+  } catch (error) {
+    // Comprehensive error logging
+    const errorDetails = error instanceof Error 
+      ? {
+          name: error.name,
+          message: error.message,
+          stack: error.stack
+        } 
+      : { message: String(error) };
+
+    console.error('Unexpected forgot password error:', {
+      input: { email: req.body.email },
+      error: errorDetails
+    });
+
+    res.status(500).json({ 
+      error: 'Internal server error', 
+      details: 'An unexpected error occurred while processing your request',
+      errorInfo: errorDetails 
+    });
+  }
+};
+
+// Reset Password Controller is now handled by the async function above
 
 export const addUser = async (req: Request, res: Response) => {
   try {
     // Log incoming request
     console.log('Incoming registration request:', JSON.stringify(req.body, null, 2));
     
-    const { name, full_name, number, email, password, bank_account_number, bank_account_balance, role } = req.body;
+    const { name, full_name, number, email, password, bank_account_number, role } = req.body;
 
     // Log field validation
     console.log('Validating required fields...');
     
     // Validate required fields
-    if (!name || !full_name || !number || !email || !password || !bank_account_number || bank_account_balance === undefined || !role) {
+    if (!name || !full_name || !number || !email || !password || !bank_account_number || !role) {
       console.log('Missing required fields:', {
         name: !name,
         full_name: !full_name,
@@ -31,7 +309,6 @@ export const addUser = async (req: Request, res: Response) => {
         email: !email,
         password: !password,
         bank_account_number: !bank_account_number,
-        bank_account_balance: bank_account_balance === undefined
       });
       return res.status(400).json({
         message: 'Missing required fields',
@@ -42,11 +319,23 @@ export const addUser = async (req: Request, res: Response) => {
           email: !email ? 'Email is required' : null,
           password: !password ? 'Password is required' : null,
           bank_account_number: !bank_account_number ? 'Bank account number is required' : null,
-          bank_account_balance: bank_account_balance === undefined ? 'Initial balance is required' : null
         }
       });
     }
 
+    // Validate number is a valid numeric value
+// Validate phone number format
+const phoneRegex = /^[0-9]{8,15}$/;
+if (!phoneRegex.test(number)) {
+  console.log('Registration failed: Invalid phone number', { providedNumber: number });
+  return res.status(400).json({
+    status: 'error',
+    message: 'Invalid phone number',
+    errors: {
+      number: 'Phone number must be 8-15 digits long. No spaces or special characters allowed.'
+    }
+  });
+}
     // Log email validation
     console.log('Validating email format...');
     
@@ -76,19 +365,7 @@ export const addUser = async (req: Request, res: Response) => {
     console.log('Validating bank account balance...');
     
     // Validate bank account balance
-    let parsedBalance: number;
-    try {
-      parsedBalance = parseFloat(bank_account_balance);
-      if (isNaN(parsedBalance) || parsedBalance < 0) {
-        throw new Error('Invalid balance');
-      }
-    } catch (err) {
-      console.log('Invalid balance:', bank_account_balance);
-      return res.status(400).json({
-        message: 'Invalid bank account balance',
-        errors: { bank_account_balance: 'Please enter a valid number for bank account balance' }
-      });
-    }
+  
 
     // Log user existence check
     console.log('Checking if user exists...');
@@ -127,7 +404,6 @@ export const addUser = async (req: Request, res: Response) => {
         email,
         password: hashedPassword,
         bank_account_number,
-        bank_account_balance: parsedBalance,
         role: 'user',
       },
     });
@@ -169,7 +445,6 @@ export const getAllUsers = async (_req: Request, res: Response) => {
         number: true,
         email: true,
         bank_account_number: true,
-        bank_account_balance: true,
         role: true,
       }
     });
@@ -192,7 +467,6 @@ export const getUserById = async (req: Request, res: Response) => {
         number: true,
         email: true,
         bank_account_number: true,
-        bank_account_balance: true,
         role: true,
       }
     });
@@ -294,13 +568,13 @@ export const login = async (req: Request, res: Response) => {
         user: userData,
         token
       });
-    } catch (jwtError) {
-      if (jwtError instanceof jwt.JsonWebTokenError) {
+    } catch (jwtError: unknown) {
+      if (jwtError instanceof Error && jwtError.name === 'JsonWebTokenError') {
         return res.status(400).json({ error: 'Invalid token' });
       }
       console.error('JWT token generation error:', {
-        message: jwtError.message,
-        stack: jwtError.stack
+        message: jwtError instanceof Error ? jwtError.message : String(jwtError),
+        stack: jwtError instanceof Error ? jwtError.stack : 'No stack trace'
       });
       return res.status(500).json({
         message: 'Failed to generate authentication token',
@@ -607,14 +881,13 @@ export const createUser = async (req: Request, res: Response) => {
       email,
       password,
       bank_account_number,
-      bank_account_balance,
       role
     } = req.body;
 
     // Validate required fields
     if (
       !name || !full_name || !number || !email || !password ||
-      !bank_account_number || !bank_account_balance || !role
+      !bank_account_number || !role
     ) {
       return res.status(400).json({ message: 'All fields are required.' });
     }
@@ -640,7 +913,6 @@ export const createUser = async (req: Request, res: Response) => {
         email,
         password: hashedPassword,
         bank_account_number,
-        bank_account_balance: parseFloat(bank_account_balance),
         role
       }
     });
@@ -651,6 +923,62 @@ export const createUser = async (req: Request, res: Response) => {
     res.status(500).json({ message: 'Internal server error' });
   }
 };
+
+//updated agents 
+export const updateAgent = async (req: Request, res: Response) => {
+  const agentId = Number(req.params.id);
+  const { region_id } = req.body;
+
+  try {
+    const existingUser = await prisma.user.findUnique({ where: { id: agentId } });
+
+    if (!existingUser || existingUser.role !== 'agent') {
+      return res.status(404).json({ message: 'Agent not found' });
+    }
+
+    const updatedAgent = await prisma.user.update({
+      where: { id: agentId },
+      data: { region_id }
+    });
+
+    res.status(200).json(updatedAgent);
+  } catch (error) {
+    console.error('Error updating agent:', error);
+    res.status(500).json({ message: 'Internal server error' });
+  }
+};
+
+export const getAgents = async (req: Request, res: Response) => {
+  try {
+    // Fetch users with the role 'agent'
+    const users = await prisma.user.findMany({
+      where: { role: 'agent' },
+      select: {
+        id: true,
+        name: true,
+        full_name: true,
+        number: true,
+        email: true,
+        bank_account_number: true,
+        role: true,
+      },
+    });
+
+    if (!users || users.length === 0) {
+      return res.status(404).json({ message: 'No agents found' });
+    }
+
+    return res.json(users);
+  } catch (err: any) {
+    console.error('Error fetching users with role "agent":', err);
+    return res.status(500).json({ message: 'Internal server error' });
+  }
+};
+
+
+
+
+
 
 export const getUsersByRole = async (req: Request, res: Response, role: Prisma.UserRoleFilter) => {
   try {

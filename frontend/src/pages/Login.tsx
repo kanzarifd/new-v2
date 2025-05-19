@@ -7,20 +7,17 @@ import {
   Button,
   TextField,
   Typography,
-  Alert,
   Link,
   Grid,
   Paper,
   InputAdornment,
   Checkbox,
   FormControlLabel,
-  Divider,
-  IconButton,
+  CircularProgress,
 } from '@mui/material';
 import LockOutlinedIcon from '@mui/icons-material/LockOutlined';
 import EmailIcon from '@mui/icons-material/Email';
-import FacebookIcon from '@mui/icons-material/Facebook';
-import TwitterIcon from '@mui/icons-material/Twitter';
+import Swal from 'sweetalert2';
 
 interface LoginCredentials {
   email: string;
@@ -32,7 +29,6 @@ const Login = () => {
   const navigate = useNavigate();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
@@ -42,28 +38,50 @@ const Login = () => {
     }
   }, [navigate]);
 
+
+
+  // loding carte
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError('');
     setIsLoading(true);
-
+  
     try {
       const credentials: LoginCredentials = { email, password };
       const { token, user } = await loginUser(credentials);
-      // Fetch full user profile (with image)
+  
       const profileRes = await fetch(`http://localhost:8000/api/users/${user.id}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
+  
       const fullProfile = await profileRes.json();
       login(fullProfile, token);
-      navigate(user.role === 'admin' ? '/admin' : '/user', { replace: true });
+  
+      Swal.fire({
+        icon: 'success',
+        title: 'Login Successful',
+        text: 'Redirecting...',
+        timer: 1500,
+        showConfirmButton: false,
+      }).then(() => {
+        navigate(user.role === 'admin' ? '/admin' : '/user', { replace: true });
+      });
+  
     } catch (err: any) {
-      console.error('Login error:', err);
-      setError(err.message || 'Invalid credentials. Please try again.');
+      Swal.fire({
+        icon: 'error',
+        title: 'Login Failed',
+        text: err.message || 'Please check your internet connection and try again.',
+        customClass: {
+          popup: 'swal2-popup-red'
+        },
+        background: '#fffff',
+        confirmButtonColor: '#d32f2f'
+      });
     } finally {
       setIsLoading(false);
     }
   };
+  
 
   return (
     <Box
@@ -81,14 +99,6 @@ const Login = () => {
           <Typography variant="h5" sx={{ mb: 3, fontWeight: 'bold' }}>
             Sign In
           </Typography>
-
-          
-
-          {error && (
-            <Alert severity="error" sx={{ mb: 2 }}>
-              {error}
-            </Alert>
-          )}
 
           <Box component="form" onSubmit={handleLogin}>
             <TextField
@@ -128,10 +138,27 @@ const Login = () => {
                 control={<Checkbox color="primary" />}
                 label="Remember Me"
               />
-              <Link href="/forgot-password" underline="hover" variant="body2">
-                Forgot Password?
-              </Link>
+              <Grid container justifyContent="flex-end" sx={{ mt: 1 }}>
+                <Grid item>
+                  <Link
+                    href="/forgot-password"
+                    underline="hover"
+                    variant="body2"
+                    sx={{
+                      color: 'error.main',
+                      fontWeight: 500,
+                      transition: '0.3s',
+                      '&:hover': {
+                        color: 'error.dark',
+                      },
+                    }}
+                  >
+                    Forgot password?
+                  </Link>
+                </Grid>
+              </Grid>
             </Grid>
+
             <Button
               type="submit"
               fullWidth
@@ -144,15 +171,22 @@ const Login = () => {
                 color: '#fff',
                 fontWeight: 'bold',
                 borderRadius: '30px',
+                textTransform: 'none',
+                fontSize: '16px',
               }}
               disabled={isLoading}
             >
-              {isLoading ? 'Logging in...' : 'Sign In'}
+              {isLoading ? (
+                <>
+                  <CircularProgress size={20} sx={{ color: 'white', mr: 1 }} />
+                  Logging in...
+                </>
+              ) : 'Sign In'}
             </Button>
           </Box>
         </Box>
 
-        {/* Right: Welcome */}
+        {/* Right: Welcome Panel */}
         <Box
           sx={{
             flex: 1,

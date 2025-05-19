@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { registerUser } from '../services/authService';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
+import Swal from 'sweetalert2';
 import {
   Box,
   Container,
@@ -23,7 +24,6 @@ import PersonIcon from '@mui/icons-material/Person';
 import EmailIcon from '@mui/icons-material/Email';
 import PhoneIcon from '@mui/icons-material/Phone';
 import AccountBalanceIcon from '@mui/icons-material/AccountBalance';
-import MonetizationOnIcon from '@mui/icons-material/MonetizationOn';
 import Visibility from '@mui/icons-material/Visibility';
 import VisibilityOff from '@mui/icons-material/VisibilityOff';
 
@@ -40,7 +40,6 @@ interface RegisterForm {
 const Register = () => {
   const navigate = useNavigate();
 
-  // State for password visibility
   const [showPassword, setShowPassword] = useState(false);
 
   const [verificationData, setVerificationData] = useState({ cin: '', name: '' });
@@ -69,9 +68,28 @@ const Register = () => {
       if (res.data.exists) {
         setIsVerified(true);
         setForm((prev) => ({ ...prev, name: verificationData.name }));
-        setSuccessMessage('Verification successful! Please complete your registration.');
+        Swal.fire({
+          icon: 'success',
+          title: 'Verification Successful',
+          text: 'You may now complete your registration.',
+          timer: 1500,
+          showConfirmButton: false,
+          customClass: {
+            popup: 'swal2-popup-red'
+          },
+          background: '#ffffff'
+        });
       } else {
-        setError('Verification failed. CIN or Name not found.');
+        Swal.fire({
+          icon: 'error',
+          title: 'Verification Failed',
+          text: 'CIN or Name not found.',
+          customClass: {
+            popup: 'swal2-popup-red'
+          },
+          background: '#ffffff',
+          confirmButtonColor: '#d32f2f'
+        });
       }
     } catch (err) {
       setError('Server error during verification.');
@@ -93,16 +111,17 @@ const Register = () => {
       email,
       password,
       bank_account_number,
-      bank_account_balance,
     } = form;
 
-    if (!name || !full_name || !number || !email || !password || !bank_account_number || !bank_account_balance) {
+    if (!name || !full_name || !number || !email || !password || !bank_account_number) {
       setError('Please fill in all required fields.');
       return;
     }
 
-    if (!email.includes('@')) {
-      setError('Please enter a valid email address.');
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    const phoneRegex = /^[0-9]{8,15}$/;
+    if (!number || !phoneRegex.test(number)) {
+      setError('Phone number must be 8-15 digits long.');
       return;
     }
 
@@ -111,30 +130,33 @@ const Register = () => {
       return;
     }
 
-    const balance = parseFloat(bank_account_balance);
-    if (isNaN(balance) || balance < 0) {
-      setError('Please enter a valid number for bank account balance.');
-      return;
-    }
-
     try {
-      const response = await registerUser(form);
-      if (response) {
+      await registerUser(form);
+
+      Swal.fire({
+        icon: 'success',
+        title: 'Registration Successful!',
+        text: 'Your account has been created. Please log in.',
+        timer: 1500,
+        showConfirmButton: false,
+        customClass: {
+          popup: 'swal2-popup-red'
+        },
+        background: '#ffffff'
+      }).then(() => {
         navigate('/login');
-      } else {
-        throw new Error('No response received from server');
-      }
-    } catch (err: any) {
-      if (err.response?.data?.errors) {
-        const errorMessages = Object.entries(err.response.data.errors)
-          .map(([field, message]) => `${field.replace('_', ' ').toUpperCase()}: ${message}`)
-          .join('\n');
-        setError(errorMessages);
-      } else if (err.response?.data?.message) {
-        setError(err.response.data.message);
-      } else {
-        setError('Registration failed. Please try again.');
-      }
+      });
+    } catch (error: any) {
+      Swal.fire({
+        icon: 'error',
+        title: 'Registration Failed',
+        text: error.message || 'Registration failed. Please try again.',
+        customClass: {
+          popup: 'swal2-popup-red'
+        },
+        background: '#ffffff',
+        confirmButtonColor: '#d32f2f'
+      });
     }
   };
 
@@ -159,7 +181,6 @@ const Register = () => {
           transition: 'box-shadow 0.3s'
         }}>
 
-          {/* Stepper for progress indication */}
           <Box sx={{ mb: 3 }}>
             <Grid container alignItems="center" justifyContent="center" spacing={2}>
               <Grid item>
@@ -189,7 +210,6 @@ const Register = () => {
           {error && (
             <Alert
               severity="error"
-              iconMapping={{ error: <LockOutlinedIcon fontSize="inherit" /> }}
               sx={{
                 mb: 3,
                 borderRadius: 2,
@@ -197,7 +217,6 @@ const Register = () => {
                 background: 'linear-gradient(90deg, #ffebee 0%, #ffcdd2 100%)',
                 color: '#b71c1c',
                 fontWeight: 'bold',
-                alignItems: 'center',
                 fontSize: '1rem',
                 letterSpacing: 0.5
               }}
@@ -205,27 +224,7 @@ const Register = () => {
               {error}
             </Alert>
           )}
-          {successMessage && (
-            <Alert
-              severity="success"
-              iconMapping={{ success: <LockOutlinedIcon fontSize="inherit" color="success" /> }}
-              sx={{
-                mb: 3,
-                borderRadius: 2,
-                boxShadow: 2,
-                background: 'linear-gradient(90deg, #e8f5e9 0%, #b9f6ca 100%)',
-                color: '#1b5e20',
-                fontWeight: 'bold',
-                alignItems: 'center',
-                fontSize: '1rem',
-                letterSpacing: 0.5
-              }}
-            >
-              {successMessage}
-            </Alert>
-          )}
 
-          {/* Verification Step with adornments and helper text */}
           {!isVerified && (
             <Fade in={!isVerified} timeout={500}>
               <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
@@ -275,7 +274,6 @@ const Register = () => {
             </Fade>
           )}
 
-          {/* Registration Step with password visibility toggle, adornments, tooltips, animation */}
           {isVerified && (
             <Fade in={isVerified} timeout={500}>
               <Box component="form" onSubmit={handleSubmit} noValidate sx={{ mt: 3, display: 'flex', flexDirection: 'column', gap: 2 }}>
@@ -325,11 +323,12 @@ const Register = () => {
                           aria-label="toggle password visibility"
                           onClick={() => setShowPassword((show) => !show)}
                           edge="end"
+                          size="large"
                         >
                           {showPassword ? <VisibilityOff /> : <Visibility />}
                         </IconButton>
                       </InputAdornment>
-                    )
+                    ),
                   }}
                   helperText="Password must be at least 6 characters."
                 />
@@ -343,42 +342,31 @@ const Register = () => {
                   InputProps={{ startAdornment: <InputAdornment position="start"><AccountBalanceIcon /></InputAdornment> }}
                   helperText="Enter your bank account number."
                 />
-                <TextField
-                  fullWidth
-                  label="Bank Account Balance"
-                  name="bank_account_balance"
-                  value={form.bank_account_balance}
-                  onChange={handleChange}
-                  required
-                  InputProps={{ startAdornment: <InputAdornment position="start"><MonetizationOnIcon /></InputAdornment> }}
-                  helperText="Enter your current balance."
-                />
                 <Button
                   type="submit"
-                  fullWidth
                   variant="contained"
                   sx={{
-                    mt: 3,
-                    py: 1.5,
-                    background: 'linear-gradient(90deg, #e53935 0%, #b71c1c 100%)',
-                    color: '#fff',
                     fontWeight: 'bold',
+                    py: 1.2,
+                    background: 'linear-gradient(90deg, #e53935 0%, #b71c1c 100%)',
                     borderRadius: 2,
                     boxShadow: 2,
-                    fontSize: '1.1rem',
                     letterSpacing: 1,
+                    fontSize: '1rem',
+                    transition: 'background 0.3s',
                     '&:hover': { background: 'linear-gradient(90deg, #b71c1c 0%, #e53935 100%)', boxShadow: 4 }
                   }}
                 >
                   Register
                 </Button>
-                <Grid container justifyContent="flex-end">
-                  <Grid item>
-                    <Link href="/login" variant="body2">
-                      Already have an account? Sign in
+                <Box sx={{ mt: 2, textAlign: 'center' }}>
+                  <Typography variant="body2">
+                    Already have an account?{' '}
+                    <Link href="/login" underline="hover" sx={{ fontWeight: 'bold', color: '#b71c1c' }}>
+                      Log in
                     </Link>
-                  </Grid>
-                </Grid>
+                  </Typography>
+                </Box>
               </Box>
             </Fade>
           )}

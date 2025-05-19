@@ -33,7 +33,6 @@ export interface EditUserForm {
   email: string;
   role: string;
   bank_account_number: string;
-  bank_account_balance: string;
 }
 
 interface EditUserDialogProps {
@@ -51,7 +50,6 @@ const EditUserDialog: React.FC<EditUserDialogProps> = ({ open, user, onClose, on
     email: '',
     role: 'user',
     bank_account_number: '',
-    bank_account_balance: '',
   });
   const [error, setError] = useState('');
 
@@ -76,8 +74,7 @@ const EditUserDialog: React.FC<EditUserDialogProps> = ({ open, user, onClose, on
       !form.number ||
       !form.email ||
       !form.role ||
-      !form.bank_account_number ||
-      !form.bank_account_balance
+      !form.bank_account_number
     ) {
       setError('Please fill in all required fields.');
       return;
@@ -176,17 +173,6 @@ const EditUserDialog: React.FC<EditUserDialogProps> = ({ open, user, onClose, on
                 value={form.bank_account_number}
                 onChange={handleChange}
                 InputProps={{ startAdornment: <InputAdornment position="start"><AccountBalanceIcon sx={{ color: '#b71c1c' }} /></InputAdornment> }}
-              />
-            </Grid>
-            <Grid item xs={12} sm={6}>
-              <TextField
-                required
-                fullWidth
-                label="Bank Account Balance"
-                name="bank_account_balance"
-                value={form.bank_account_balance}
-                onChange={handleChange}
-                InputProps={{ startAdornment: <InputAdornment position="start"><MonetizationOnIcon sx={{ color: '#b71c1c' }} /></InputAdornment> }}
               />
             </Grid>
           </Grid>

@@ -113,6 +113,44 @@ export const getAllReclams = async (_: Request, res: Response) => {
   }
 };
 
+
+// GET /api/reclams/by-user-region/:userId
+export const getReclamsByUserRegion = async (req: Request, res: Response) => {
+  try {
+    const userId = Number(req.params.userId);
+    if (isNaN(userId)) {
+      return res.status(400).json({ error: 'Invalid user ID' });
+    }
+
+    // Get the user and their region_id
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { region_id: true }
+    });
+
+    if (!user || user.region_id === null) {
+      return res.status(404).json({ error: 'User or user region not found' });
+    }
+
+    const reclams = await prisma.reclam.findMany({
+      where: {
+        region_id: user.region_id
+      },
+      include: {
+        user: true,
+        region: true
+      }
+    });
+
+    return res.status(200).json(reclams);
+  } catch (error: any) {
+    console.error('Error in getReclamsByUserRegion:', error);
+    return res.status(500).json({ error: 'Internal server error' });
+  }
+};
+
+
+
 export const getReclamById = async (req: Request, res: Response) => {
   try {
     const reclam = await prisma.reclam.findUnique({
@@ -277,6 +315,11 @@ export const updateReclamStatus = async (req: Request, res: Response) => {
     res.status(500).json({ error: 'Failed to update reclamation status' });
   }
 };
+
+
+
+
+
 
 export const updateReclam = async (req: Request, res: Response) => {
   try {

@@ -23,6 +23,7 @@ import {
   Badge,
   TextField,
   InputAdornment,
+  
   Alert,
 } from '@mui/material';
 import {
@@ -32,6 +33,8 @@ import {
   Dashboard as DashboardIcon,
   Person,
   Email,
+   Edit as EditIcon,
+    Close as CloseIcon,
   Phone,
   Notifications as NotificationsIcon,
   LockOutlined,
@@ -46,12 +49,16 @@ interface AgentHeaderProps {
   toggleDrawer: () => void;
   onLogout: () => void;
   isMobile: boolean;
+  regionName?: string;
+
 }
 
 const AgentHeader: React.FC<AgentHeaderProps> = ({
   toggleDrawer,
   onLogout,
   isMobile,
+  regionName,
+
 }) => {
   const { mode, toggleColorMode } = useThemeContext();
   const { user, token } = useAuth();
@@ -72,6 +79,33 @@ const AgentHeader: React.FC<AgentHeaderProps> = ({
   const [changePasswordDialogOpen, setChangePasswordDialogOpen] = useState(false);
   const [changePasswordError, setChangePasswordError] = useState('');
   const [changePasswordLoading, setChangePasswordLoading] = useState(false);
+
+  const [updateDialogOpen, setUpdateDialogOpen] = useState(false);
+const [updateForm, setUpdateForm] = useState({
+  email: '',
+  name: '',
+  full_name: '',
+  number: '',
+});
+const [updateLoading, setUpdateLoading] = useState(false);
+const [updateError, setUpdateError] = useState<string | null>(null);
+const [updateSuccess, setUpdateSuccess] = useState<string | null>(null);
+
+
+
+
+useEffect(() => {
+  if (user?.id) {
+    axios.get(`http://localhost:8000/api/users/${user.id}`).then(res => {
+      setUpdateForm({
+        email: res.data.email || '',
+        name: res.data.name || '',
+        full_name: res.data.full_name || '',
+        number: res.data.number || '',
+      });  
+    });
+  }
+}, [user]);
 
   useEffect(() => {
     if (profileDialogOpen && user?.id && token) {
@@ -163,6 +197,32 @@ const AgentHeader: React.FC<AgentHeaderProps> = ({
 
   const handleNotificationClose = () => setNotificationAnchorEl(null);
 
+
+  const handleUpdateUser = async () => {
+    if (!user?.id || !token) return;
+    setUpdateLoading(true);
+    setUpdateError(null);
+    setUpdateSuccess(null);
+  
+    try {
+      await axios.put(`http://localhost:8000/api/users/${user.id}`, updateForm, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+      setUpdateSuccess('Profile updated successfully!');
+      setTimeout(() => {
+        setUpdateDialogOpen(false);
+        window.location.reload(); // Optional: refresh data
+      }, 1500);
+    } catch (err: any) {
+      setUpdateError(err.response?.data?.error || 'Failed to update profile.');
+    } finally {
+      setUpdateLoading(false);
+    }
+  };
+  
+
   // Handler for password change submission
   const handleChangePassword = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -223,22 +283,26 @@ const AgentHeader: React.FC<AgentHeaderProps> = ({
                 <MenuIcon />
               </IconButton>
             )}
-            <Typography
-              variant="h6"
-              noWrap
-              component="div"
-              sx={{
-                fontWeight: 700,
-                color: theme.palette.error.main,
-                textTransform: 'uppercase',
-                fontSize: { xs: '1rem', sm: '1.25rem', md: '1.5rem' },
-                letterSpacing: 1,
-              }}
-            >
-              Agent Dashboard
-            </Typography>
-          </Box>
+             <Typography
+  variant="h6"
+  noWrap
+  component="div"
+  sx={{
+    fontWeight: 700,
+    color: theme.palette.error.main,
+    textTransform: 'uppercase',
+    fontSize: { xs: '1rem', sm: '1.25rem', md: '1.5rem' },
+    letterSpacing: 1,
+  }}
+>
+  Agent Dashboard
+  {regionName ? ` of (${regionName})` : ''}
+</Typography>
 
+
+
+          </Box>
+        
           {/* Right Side */}
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
             {/* Dark/Light Mode Icon with Sun/Moon */}
@@ -274,6 +338,8 @@ const AgentHeader: React.FC<AgentHeaderProps> = ({
               </IconButton>
             </Tooltip>
 
+
+      
             {/* Notification Icon with Badge */}
             <Tooltip title="Notifications">
               <IconButton
@@ -516,16 +582,20 @@ const AgentHeader: React.FC<AgentHeaderProps> = ({
         </Toolbar>
       </AppBar>
       {/* Profile Info Dialog */}
-      <Dialog
-        open={profileDialogOpen}
-        onClose={() => setProfileDialogOpen(false)}
-        fullWidth
-        maxWidth="xs"
-      >
-        <DialogTitle sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontWeight: 'bold', color: theme.palette.primary.main }}>
-          Account Overview
-        </DialogTitle>
-        <DialogContent dividers>
+     <Dialog open={profileDialogOpen} onClose={() => setProfileDialogOpen(false)} fullWidth maxWidth="xs">
+            <DialogTitle
+              sx={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                fontWeight: 'bold',
+                color: theme.palette.primary.main,
+              }}
+            >
+              Account Overview
+    
+            </DialogTitle>
+            <DialogContent dividers>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 3 }}>
             <Avatar sx={{ bgcolor: theme.palette.primary.main, width: 64, height: 64, fontSize: 28, fontWeight: 'bold' }}>
               {(profile?.name || profile?.username || profile?.email || '').charAt(0).toUpperCase()}
@@ -574,10 +644,217 @@ const AgentHeader: React.FC<AgentHeaderProps> = ({
             </Paper>
           )}
         </DialogContent>
+           
+    
+    
+            <DialogActions sx={{ justifyContent: 'space-between', p: 2, bgcolor: 'background.paper', borderTop: '1px solid', borderColor: mode === 'dark' ? '#2d2d2d' : '#e53935' }}>
+              <Button
+                onClick={() => setProfileDialogOpen(false)}
+                variant="outlined"
+                color="error"
+                sx={{
+                  borderRadius: 2,
+                  textTransform: 'none',
+                  fontWeight: 600,
+                  fontSize: '0.9rem',
+                  minWidth: 120,
+                  '&:hover': {
+                    transform: 'scale(1.02)',
+                    bgcolor: mode === 'dark' ? '#222' : '#ffebee',
+                    color: mode === 'dark' ? '#e53935' : '#b71c1c',
+                  },
+                }}
+              >
+                <CloseIcon sx={{ mr: 1 }} />
+                Close
+              </Button>
+              <Button
+                onClick={() => setUpdateDialogOpen(true)}
+                variant="contained"
+                color="error"
+                sx={{
+                  borderRadius: 2,
+                  textTransform: 'none',
+                  fontWeight: 600,
+                  fontSize: '0.9rem',
+                  minWidth: 120,
+                  '&:hover': {
+                    transform: 'scale(1.02)',
+                    bgcolor: '#e53935',
+                    color: '#fff',
+                  },
+                }}
+              >
+                <EditIcon sx={{ mr: 1 }} />
+                Update Profile
+              </Button>
+            </DialogActions>
+          </Dialog>
+      {/* Update Profile Dialog */}
+      <Dialog open={updateDialogOpen} onClose={() => setUpdateDialogOpen(false)} fullWidth maxWidth="xs">
+        <DialogTitle sx={{
+          color: '#b71c1c',
+          textAlign: 'center',
+          fontWeight: 700,
+          fontSize: '1.25rem',
+          textTransform: 'uppercase',
+          letterSpacing: '0.5px',
+          py: 2,
+        }}>
+          Update Profile
+        </DialogTitle>
+        <DialogContent sx={{ pt: 4, pb: 3 }}>
+          <Box component="form" noValidate sx={{ mt: 1, display: 'flex', flexDirection: 'column', gap: 2 }}>
+            <TextField
+              label="Name"
+              value={updateForm.name}
+              onChange={e => setUpdateForm(f => ({ ...f, name: e.target.value }))}
+              fullWidth
+              required
+              sx={{
+                '& label': { color: '#b71c1c' },
+                '& .MuiOutlinedInput-root': {
+                  '& fieldset': { borderColor: '#b71c1c' },
+                  '&:hover fieldset': { borderColor: '#7f1010' },
+                  '&.Mui-focused fieldset': { borderColor: '#b71c1c' },
+                  '& .MuiInputAdornment-root .MuiSvgIcon-root': { color: '#b71c1c' }
+                }
+              }}
+              InputProps={{
+                startAdornment: <InputAdornment position="start">
+                  <Person sx={{ color: '#b71c1c' }} />
+                </InputAdornment>
+              }}
+            />
+            <TextField
+              label="Full Name"
+              value={updateForm.full_name}
+              onChange={e => setUpdateForm(f => ({ ...f, full_name: e.target.value }))}
+              fullWidth
+              sx={{
+                '& label': { color: '#b71c1c' },
+                '& .MuiOutlinedInput-root': {
+                  '& fieldset': { borderColor: '#b71c1c' },
+                  '&:hover fieldset': { borderColor: '#7f1010' },
+                  '&.Mui-focused fieldset': { borderColor: '#b71c1c' },
+                  '& .MuiInputAdornment-root .MuiSvgIcon-root': { color: '#b71c1c' }
+                }
+              }}
+              InputProps={{
+                startAdornment: <InputAdornment position="start">
+                  <Person sx={{ color: '#b71c1c' }} />
+                </InputAdornment>
+              }}
+            />
+            <TextField
+              label="Phone Number"
+              value={updateForm.number}
+              onChange={e => setUpdateForm(f => ({ ...f, number: e.target.value }))}
+              fullWidth
+              sx={{
+                '& label': { color: '#b71c1c' },
+                '& .MuiOutlinedInput-root': {
+                  '& fieldset': { borderColor: '#b71c1c' },
+                  '&:hover fieldset': { borderColor: '#7f1010' },
+                  '&.Mui-focused fieldset': { borderColor: '#b71c1c' },
+                  '& .MuiInputAdornment-root .MuiSvgIcon-root': { color: '#b71c1c' }
+                }
+              }}
+              InputProps={{
+                startAdornment: <InputAdornment position="start">
+                  <Phone sx={{ color: '#b71c1c' }} />
+                </InputAdornment>
+              }}
+            />
+            <TextField
+              label="Email"
+              value={updateForm.email}
+              onChange={e => setUpdateForm(f => ({ ...f, email: e.target.value }))}
+              fullWidth
+              required
+              type="email"
+              sx={{
+                '& label': { color: '#b71c1c' },
+                '& .MuiOutlinedInput-root': {
+                  '& fieldset': { borderColor: '#b71c1c' },
+                  '&:hover fieldset': { borderColor: '#7f1010' },
+                  '&.Mui-focused fieldset': { borderColor: '#b71c1c' },
+                  '& .MuiInputAdornment-root .MuiSvgIcon-root': { color: '#b71c1c' }
+                }
+              }}
+              InputProps={{
+                startAdornment: <InputAdornment position="start">
+                  <Email sx={{ color: '#b71c1c' }} />
+                </InputAdornment>
+              }}
+            />
+          </Box>
+          {updateError && (
+            <Alert severity="error" sx={{ mt: 2 }}>
+              {updateError}
+            </Alert>
+          )}
+          {updateSuccess && (
+            <Alert severity="success" sx={{ mt: 2 }}>
+              {updateSuccess}
+            </Alert>
+          )}
+        </DialogContent>
         <DialogActions>
-          <Button onClick={() => setProfileDialogOpen(false)} sx={{ color: theme.palette.error.main }}>Close</Button>
+          <Button
+            onClick={() => setUpdateDialogOpen(false)}
+            disabled={updateLoading}
+            sx={{
+              color: '#b71c1c',
+              '&:hover': {
+                backgroundColor: '#ffebee',
+                color: '#b71c1c',
+              },
+              '&:disabled': {
+                color: '#b71c1c',
+                opacity: 0.7,
+              }
+            }}
+          >
+            Cancel
+          </Button>
+        <Button
+                    onClick={async () => {
+                      setUpdateLoading(true);
+                      setUpdateError(null);
+                      setUpdateSuccess(null);
+                      try {
+                        if (!user?.id) {
+                          setUpdateError('User not found. Please log in again.');
+                          setUpdateLoading(false);
+                          return;
+                        }
+                        const res = await axios.put(
+                          `http://localhost:8000/api/users/${user.id}`,
+                          updateForm,
+                          { headers: { Authorization: `Bearer ${token}` } }
+                        );
+                        setUpdateSuccess('User updated successfully!');
+                        setProfile(res.data.user);
+                        setTimeout(() => {
+                          setUpdateDialogOpen(false);
+                        }, 1000);
+                      } catch (err: any) {
+                        setUpdateError(err?.response?.data?.message || 'Update failed');
+                      } finally {
+                        setUpdateLoading(false);
+                      }
+                    }}
+                    color="error"
+                    variant="contained"
+                    disabled={updateLoading}
+                    sx={{ fontWeight: 700 }}
+                  >
+                    {updateLoading ? 'Saving...' : 'Save Changes'}
+            </Button>
         </DialogActions>
       </Dialog>
+
       {/* Change Password Dialog */}
       <Dialog open={changePasswordDialogOpen} onClose={() => setChangePasswordDialogOpen(false)} fullWidth maxWidth="xs">
         <DialogTitle sx={{ fontWeight: 'bold', color: '#b71c1c', textAlign: 'center', letterSpacing: 1, fontSize: 22, textShadow: '0 2px 8px rgba(183,28,28,0.15)' }}>

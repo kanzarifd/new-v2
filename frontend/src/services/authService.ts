@@ -8,7 +8,6 @@ interface RegisterData {
   email: string;
   password: string;
   bank_account_number: string;
-  bank_account_balance: string;
 }
 
 interface Data {
@@ -18,12 +17,11 @@ interface Data {
   email: string;
   password: string;
   bank_account_number: string;
-  bank_account_balance: string;
   role: string; // <- required for createUser
 }
 
 
-interface LoginData {
+interface LoginData { 
   email: string;
   password: string;
 }
@@ -31,17 +29,12 @@ interface LoginData {
 // Register API call
 export const registerUser = async (userData: RegisterData) => {
   try {
-    // Validate bank account balance
-    const balance = parseFloat(userData.bank_account_balance);
-    if (isNaN(balance) || balance < 0) {
-      throw new Error('Please enter a valid number for bank account balance');
-    }
+    
 
     // Prepare the request body with required fields
     const body = {
       ...userData,
       role: 'user',  // Add the required role field
-      bank_account_balance: balance  // Send as number
     };
     
     console.log('Sending registration request to:', api.defaults.baseURL + '/api/users');
@@ -60,6 +53,11 @@ export const registerUser = async (userData: RegisterData) => {
     
     // Handle different types of errors
     if (error.response?.data?.errors) {
+      // If errors is an object with email error, throw that specific message
+      if (error.response.data.errors.email) {
+        throw new Error(error.response.data.errors.email);
+      }
+      // Otherwise, stringify and throw all errors
       throw new Error(JSON.stringify(error.response.data.errors));
     } else if (error.response?.data?.message) {
       throw new Error(error.response.data.message);
@@ -80,14 +78,8 @@ export const registerUser = async (userData: RegisterData) => {
 // Admin create user API call (with role selection)
 export const createUser = async (userData: Data) => {
   try {
-    const balance = parseFloat(userData.bank_account_balance);
-    if (isNaN(balance) || balance < 0) {
-      throw new Error('Please enter a valid number for bank account balance');
-    }
-
     const body = {
       ...userData,
-      bank_account_balance: balance
     };
 
     console.log('Sending create user request to:', api.defaults.baseURL + '/api/users');
@@ -118,6 +110,49 @@ export const createUser = async (userData: Data) => {
   }
 };
 
+// Forgot Password API call
+export const forgotPassword = async (email: string) => {
+  try {
+    const response = await api.post('/api/users/forgot-password', { email });
+    return response.data;
+  } catch (error: any) {
+    console.error('Forgot password error:', {
+      message: error.message,
+      response: error.response?.data,
+      status: error.response?.status
+    });
+
+    if (error.response?.data?.error) {
+      throw new Error(error.response.data.error);
+    } else if (error.response?.data?.message) {
+      throw new Error(error.response.data.message);
+    } else {
+      throw new Error('Password reset failed. Please try again.');
+    }
+  }
+};
+
+// Reset Password API call
+export const resetPassword = async (token: string, password: string) => {
+  try {
+    const response = await api.post(`/api/users/reset-password/${token}`, { password });
+    return response.data;
+  } catch (error: any) {
+    console.error('Reset password error:', {
+      message: error.message,
+      response: error.response?.data,
+      status: error.response?.status
+    });
+
+    if (error.response?.data?.error) {
+      throw new Error(error.response.data.error);
+    } else if (error.response?.data?.message) {
+      throw new Error(error.response.data.message);
+    } else {
+      throw new Error('Password reset failed. Please try again.');
+    }
+  }
+};
 
 // Login API call
 export const loginUser = async (credentials: LoginData) => {

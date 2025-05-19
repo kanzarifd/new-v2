@@ -6,6 +6,11 @@ body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
+.swal2-popup-red {
+  border: 2px solid #d32f2f;
+  box-shadow: 0 0 10px rgba(211, 47, 47, 0.5);
+}
+
 
 code {
   font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New',

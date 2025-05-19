@@ -42,7 +42,6 @@ interface RegisterForm {
   email: string;
   password: string;
   bank_account_number: string;
-  bank_account_balance: string;
   role: string;
 }
 
@@ -54,7 +53,6 @@ const CreateUserDialog: React.FC<CreateUserDialogProps> = ({ open, onClose, onSu
     email: '',
     password: '',
     bank_account_number: '',
-    bank_account_balance: '',
     role: 'user',
   });
   const [error, setError] = useState('');
@@ -79,8 +77,7 @@ const CreateUserDialog: React.FC<CreateUserDialogProps> = ({ open, onClose, onSu
       !form.number ||
       !form.email ||
       !form.password ||
-      !form.bank_account_number ||
-      !form.bank_account_balance
+      !form.bank_account_number
     ) {
       setError('Please fill in all required fields.');
       setLoading(false);
@@ -99,12 +96,7 @@ const CreateUserDialog: React.FC<CreateUserDialogProps> = ({ open, onClose, onSu
       return;
     }
 
-    const balance = parseFloat(form.bank_account_balance);
-    if (isNaN(balance) || balance < 0) {
-      setError('Please enter a valid number for bank account balance.');
-      setLoading(false);
-      return;
-    }
+  
 
     try {
       await registerUser(form);
@@ -134,7 +126,6 @@ const CreateUserDialog: React.FC<CreateUserDialogProps> = ({ open, onClose, onSu
       email: '',
       password: '',
       bank_account_number: '',
-      bank_account_balance: '',
       role: 'user',
     });
     setError('');
@@ -249,17 +240,7 @@ const CreateUserDialog: React.FC<CreateUserDialogProps> = ({ open, onClose, onSu
                 InputProps={{ startAdornment: <InputAdornment position="start"><AccountBalanceIcon sx={{ color: '#b71c1c' }} /></InputAdornment> }}
               />
             </Grid>
-            <Grid item xs={12} sm={6}>
-              <TextField
-                required
-                fullWidth
-                label="Bank Account Balance"
-                name="bank_account_balance"
-                value={form.bank_account_balance}
-                onChange={handleChange}
-                InputProps={{ startAdornment: <InputAdornment position="start"><MonetizationOnIcon sx={{ color: '#b71c1c' }} /></InputAdornment> }}
-              />
-            </Grid>
+           
           </Grid>
         </DialogContent>
         <DialogActions>

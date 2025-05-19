@@ -10,9 +10,13 @@ import {
   getUsersByRole,
   deleteUser,
   changePassword,
-  createUser
+  createUser,
+  updateAgent,
+  forgotPassword
 } from '../controllers/userController';
 import { PrismaClient } from '@prisma/client';
+import { ParamsDictionary } from 'express-serve-static-core';
+import { ParsedQs } from 'qs';
 const prisma = new PrismaClient();
 
 // Helper function to wrap async controllers
@@ -75,6 +79,20 @@ router.patch('/:id/change-password', asyncHandler(async (req: Request, res: Resp
 }));
 
 
+// updated agents 
+router.put('/agent/:id', updateAgent);
+
+
+// get agents
+router.get('/agents', asyncHandler(async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    await getAgents(req, res);
+  } catch (error) {
+    next(error);
+  }
+}));
+
+
 router.post('/register', createUser);
 
 
@@ -87,18 +105,28 @@ router.post('/login', asyncHandler(async (req: Request, res: Response, next: Nex
   }
 }));
 
-// Password reset routes
-router.post('/password/reset', asyncHandler(async (req: Request, res: Response, next: NextFunction) => {
+// Forgot Password Route
+router.post('/forgot-password', asyncHandler(async (req: Request, res: Response, next: NextFunction) => {
   try {
-    await requestPasswordReset(req, res);
+    await forgotPassword(req, res);
   } catch (error) {
     next(error);
   }
 }));
 
-router.post('/password/reset/:token', asyncHandler(async (req: Request, res: Response, next: NextFunction) => {
+// Reset Password Route
+router.post('/reset-password/:token', asyncHandler(async (req: Request, res: Response, next: NextFunction) => {
   try {
     await resetPassword(req, res);
+  } catch (error) {
+    next(error);
+  }
+}));
+
+// Password reset routes
+router.post('/password/reset', asyncHandler(async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    await requestPasswordReset(req, res);
   } catch (error) {
     next(error);
   }
@@ -142,3 +170,7 @@ router.get('/me', asyncHandler(async (req: Request, res: Response) => {
 }));
 
 export { router };
+  function getAgents(req: express.Request<ParamsDictionary, any, any, ParsedQs, Record<string, any>>, res: express.Response<any, Record<string, any>>) {
+    throw new Error('Function not implemented.');
+  }
+

@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 
 interface User {
+  region_id: any;
   id: string;
   email: string;
   role: 'admin' | 'user';

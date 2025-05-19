@@ -499,7 +499,6 @@ const UserHeader: React.FC<UserHeaderProps> = ({
                   ['Phone Number', profile ? (profile.number || '-') : 'Loading...', <Phone fontSize="small" />],
                   ['Email', profile ? profile.email : 'Loading...', <Email fontSize="small" />],
                   ['Bank Account', profile ? (profile.bank_account_number || '-') : 'Loading...', <AccountBalance fontSize="small" />],
-                  ['Balance', profile ? (profile.bank_account_balance !== undefined ? profile.bank_account_balance.toLocaleString('en-US', { style: 'currency', currency: 'USD' }) : '-') : 'Loading...', <MonetizationOn fontSize="small" />],
                 ].map(([label, value, icon]) => (
                   <Grid item xs={12} sm={6} key={String(label)}>
                     <Box display="flex" alignItems="center" gap={1}>

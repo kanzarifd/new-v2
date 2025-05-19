@@ -39,6 +39,8 @@ import {
   Person,
   Phone,
   Notifications as NotificationsIcon,
+  Edit as EditIcon,
+  Close as CloseIcon,
 } from '@mui/icons-material';
 import LockOutlinedIcon from '@mui/icons-material/LockOutlined';
 import VpnKeyIcon from '@mui/icons-material/VpnKey';
@@ -66,9 +68,22 @@ const AdminHeader: React.FC<AdminHeaderProps> = ({
   const isMobileScreen = useMediaQuery(theme.breakpoints.down('sm'));
   const [anchorEl, setAnchorEl] = React.useState<null | HTMLElement>(null);
   // Profile dialog state
+  const [updateDialogOpen, setUpdateDialogOpen] = useState(false);
+const [updateForm, setUpdateForm] = useState({
+  email: '',
+  name: '',
+  full_name: '',
+  number: '',
+});
+const [updateLoading, setUpdateLoading] = useState(false);
+const [updateError, setUpdateError] = useState<string | null>(null);
+const [updateSuccess, setUpdateSuccess] = useState<string | null>(null);
+
   const [profile, setProfile] = useState<User | null>(null);
   const [adminInfo, setAdminInfo] = useState<any>(null);
   const [profileDialogOpen, setProfileDialogOpen] = useState(false);
+  const [user, setUser] = useState<any>(null);
+  const [token, setToken] = useState<string | null>(null);
   const [changePasswordDialogOpen, setChangePasswordDialogOpen] = useState(false);
   const [changePasswordError, setChangePasswordError] = useState('');
   const [changePasswordLoading, setChangePasswordLoading] = useState(false);
@@ -92,14 +107,66 @@ const AdminHeader: React.FC<AdminHeaderProps> = ({
     setUnreadCount(0);
   };
 
+
+  const handleUpdateUser = async () => {
+    if (!user?.id || !token) return;
+    setUpdateLoading(true);
+    setUpdateError(null);
+    setUpdateSuccess(null);
+  
+    try {
+      await axios.put(`http://localhost:8000/api/users/${user.id}`, updateForm, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+      setUpdateSuccess('Profile updated successfully!');
+      setTimeout(() => {
+        setUpdateDialogOpen(false);
+        window.location.reload(); // Or refetch the profile
+      }, 1500);
+    } catch (err: any) {
+      setUpdateError(err.response?.data?.error || 'Failed to update profile.');
+    } finally {
+      setUpdateLoading(false);
+    }
+  };
+  
+
+
+
   const handleNotificationClose = () => setNotificationAnchorEl(null);
+
+
+
+  useEffect(() => {
+    if (updateDialogOpen && profile) {
+      setUpdateForm({
+        email: profile.email || '',
+        name: profile.name || '',
+        full_name: profile.full_name || '',
+        number: profile.number || '',
+      });
+      setUpdateError(null);
+      setUpdateSuccess(null);
+    }
+  }, [updateDialogOpen, profile]);
+  
 
   // Fetch current user by ID stored in localStorage
   useEffect(() => {
-    const stored = localStorage.getItem('user');
-    const userId = stored ? JSON.parse(stored).id : null;
-    if (userId) {
-      api.get<User>(`/api/users/${userId}`).then(res => setProfile(res.data)).catch(console.error);
+    const storedUser = localStorage.getItem('user');
+    const storedToken = localStorage.getItem('token');
+    
+    if (storedUser) {
+      const userData = JSON.parse(storedUser);
+      setUser(userData);
+      if (userData.id) {
+        api.get<User>(`/api/users/${userData.id}`).then(res => setProfile(res.data)).catch(console.error);
+      }
+    }
+    if (storedToken) {
+      setToken(storedToken);
     }
   }, []);
 
@@ -188,6 +255,9 @@ const AdminHeader: React.FC<AdminHeaderProps> = ({
   };
 
   return (
+
+
+    
     <Box>
       <AppBar
         position="fixed"
@@ -254,6 +324,112 @@ const AdminHeader: React.FC<AdminHeaderProps> = ({
                 </Badge>
               </IconButton>
             </Tooltip>
+            <Dialog open={updateDialogOpen} onClose={() => setUpdateDialogOpen(false)} maxWidth="sm" fullWidth>
+  <DialogTitle sx={{
+    color: '#b71c1c',
+    textAlign: 'center',
+    fontWeight: 700,
+    fontSize: '1.25rem',
+    textTransform: 'uppercase',
+    letterSpacing: '0.5px',
+    py: 2,
+  }}>
+    Update Profile
+  </DialogTitle>
+
+  
+  <DialogContent sx={{ pt: 4, pb: 3 }}>
+        <Box component="form" noValidate sx={{ mt: 1, display: 'flex', flexDirection: 'column', gap: 2 }}>
+                <TextField
+                  label="Name"
+                  value={updateForm.name}
+                  onChange={e => setUpdateForm(f => ({ ...f, name: e.target.value }))}
+                  fullWidth
+                  required
+                />
+                <TextField
+                  label="Full Name"
+                  value={updateForm.full_name}
+                  onChange={e => setUpdateForm(f => ({ ...f, full_name: e.target.value }))}
+                  fullWidth
+                />
+                <TextField
+                  label="Phone Number"
+                  value={updateForm.number}
+                  onChange={e => setUpdateForm(f => ({ ...f, number: e.target.value }))}
+                  fullWidth
+                />
+                <TextField
+                  label="Email"
+                  value={updateForm.email}
+                  onChange={e => setUpdateForm(f => ({ ...f, email: e.target.value }))}
+                  fullWidth
+                  required
+                  type="email"
+                />
+              </Box>
+  </DialogContent>
+
+
+
+
+
+  <DialogActions>
+
+
+    <Button 
+      onClick={() => setUpdateDialogOpen(false)} 
+      disabled={updateLoading}
+      sx={{
+        color: '#b71c1c',
+        '&:hover': {
+          backgroundColor: '#ffebee',
+          color: '#b71c1c',
+        },
+        '&:disabled': {
+          color: '#b71c1c',
+          opacity: 0.7,
+        }
+      }}
+    >
+      Cancel
+    </Button>
+    <Button
+            onClick={async () => {
+              setUpdateLoading(true);
+              setUpdateError(null);
+              setUpdateSuccess(null);
+              try {
+                if (!user?.id) {
+                  setUpdateError('User not found. Please log in again.');
+                  setUpdateLoading(false);
+                  return;
+                }
+                const res = await axios.put(
+                  `http://localhost:8000/api/users/${user.id}`,
+                  updateForm,
+                  { headers: { Authorization: `Bearer ${token}` } }
+                );
+                setUpdateSuccess('User updated successfully!');
+                setProfile(res.data.user);
+                setTimeout(() => {
+                  setUpdateDialogOpen(false);
+                }, 1000);
+              } catch (err: any) {
+                setUpdateError(err?.response?.data?.message || 'Update failed');
+              } finally {
+                setUpdateLoading(false);
+              }
+            }}
+            color="error"
+            variant="contained"
+            disabled={updateLoading}
+            sx={{ fontWeight: 700 }}
+          >
+            {updateLoading ? 'Saving...' : 'Save Changes'}
+    </Button>
+  </DialogActions>
+</Dialog>
 
             <Menu
               anchorEl={notificationAnchorEl}
@@ -539,7 +715,6 @@ const AdminHeader: React.FC<AdminHeaderProps> = ({
                 ['Full Name', profile ? profile.full_name : 'Loading...', <Person fontSize="small" />],
                 ['Phone Number', profile ? profile.number : 'Loading...', <Phone fontSize="small" />],
                 ['Bank Account', profile ? profile.bank_account_number : 'Loading...', <AccountBalance fontSize="small" />],
-                ['Balance', profile ? profile.bank_account_balance?.toLocaleString('en-US', { style: 'currency', currency: 'USD' }) : 'Loading...', <MonetizationOn fontSize="small" />],
 
               ].map(([label, value, icon]) => (
                 <Grid item xs={12} sm={6} key={String(label)}>
@@ -570,12 +745,52 @@ const AdminHeader: React.FC<AdminHeaderProps> = ({
                 ))}
               </Grid>
             </Paper>
+            
           )}
         </DialogContent>
+     
 
-        <DialogActions sx={{ justifyContent: 'flex-end' }}>
-          <Button onClick={() => setProfileDialogOpen(false)} color="primary" variant="outlined">
+
+        <DialogActions sx={{ justifyContent: 'space-between', p: 2, bgcolor: 'background.paper', borderTop: '1px solid', borderColor: mode === 'dark' ? '#2d2d2d' : '#e53935' }}>
+          <Button
+            onClick={() => setProfileDialogOpen(false)}
+            variant="outlined"
+            color="error"
+            sx={{
+              borderRadius: 2,
+              textTransform: 'none',
+              fontWeight: 600,
+              fontSize: '0.9rem',
+              minWidth: 120,
+              '&:hover': {
+                transform: 'scale(1.02)',
+                bgcolor: mode === 'dark' ? '#222' : '#ffebee',
+                color: mode === 'dark' ? '#e53935' : '#b71c1c',
+              },
+            }}
+          >
+            <CloseIcon sx={{ mr: 1 }} />
             Close
+          </Button>
+          <Button
+            onClick={() => setUpdateDialogOpen(true)}
+            variant="contained"
+            color="error"
+            sx={{
+              borderRadius: 2,
+              textTransform: 'none',
+              fontWeight: 600,
+              fontSize: '0.9rem',
+              minWidth: 120,
+              '&:hover': {
+                transform: 'scale(1.02)',
+                bgcolor: '#e53935',
+                color: '#fff',
+              },
+            }}
+          >
+            <EditIcon sx={{ mr: 1 }} />
+            Update Profile
           </Button>
         </DialogActions>
       </Dialog>
